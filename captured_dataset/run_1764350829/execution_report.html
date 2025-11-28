@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Automation Report: How do I create a roadmap in jira?</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 36px;
+            font-weight: 600;
+        }
+        .task {
+            font-size: 20px;
+            opacity: 0.95;
+            margin: 15px 0;
+        }
+        .info-box {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .info-box h2 {
+            margin-top: 0;
+            color: #667eea;
+            font-size: 24px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .info-box p {
+            line-height: 1.8;
+            color: #555;
+            margin: 10px 0;
+        }
+        .info-box ul {
+            line-height: 1.8;
+            color: #555;
+        }
+        .agent-badge {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .agent-badge.planner {
+            background: #2196F3;
+        }
+        .agent-badge.vision {
+            background: #FF9800;
+        }
+        .step {
+            background: white;
+            padding: 35px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .step:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+        .url {
+            color: #666;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            background: #f5f5f5;
+            padding: 6px 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            max-width: 60%;
+        }
+        .screenshot-container {
+            position: relative;
+            margin: 25px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        .screenshot {
+            width: 100%;
+            display: block;
+            border: 1px solid #e0e0e0;
+        }
+        .description {
+            line-height: 1.8;
+            color: #333;
+            font-size: 16px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .transition {
+            background: linear-gradient(to right, #fff5e6, #ffffff);
+            border-left: 5px solid #FF9800;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 8px;
+            font-size: 15px;
+            color: #555;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .transition::before {
+            content: "🤖 AI Agent Action";
+            display: block;
+            font-weight: bold;
+            font-style: normal;
+            color: #FF9800;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 14px;
+            border-top: 1px solid #ddd;
+            margin-top: 40px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .stat-item {
+            flex: 1;
+            min-width: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 AI Automation Execution Report</h1>
+        <p class="task"><strong>Task:</strong> How do I create a roadmap in jira?</p>
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number">4</div>
+                <div class="stat-label">Steps Captured</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">3</div>
+                <div class="stat-label">AI Actions</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-box">
+        <h2>🧠 How This Automation Works</h2>
+        <p>This report shows the step-by-step execution of an AI-powered browser automation system. Two AI agents work together to complete your task:</p>
+        <ul>
+            <li><strong>Planner Agent <span class="agent-badge planner">GPT-4</span></strong> - Creates a strategic plan by breaking down your task into logical steps (navigate, login, interact, verify).</li>
+            <li><strong>Vision Agent <span class="agent-badge vision">GPT-4 Vision</span></strong> - Analyzes screenshots in real-time to decide which buttons to click, forms to fill, and actions to take.</li>
+        </ul>
+        <p><strong>The Process:</strong> The Planner creates the initial roadmap, then the Vision Agent looks at each screenshot and decides the best action to move forward. If the plan doesn't work perfectly, the Vision Agent adapts and explores alternative paths to complete your task.</p>
+    </div>
+
+    <div class="step">
+        <div class="step-header">
+            <span class="step-number">Step 1</span>
+            
+            <span class="url">https://home.atlassian.com/o/8c4b6fb0-968f-43da-9d92-a246986f7481/?utm_source=id...</span>
+        </div>
+        <div class="screenshot-container">
+            <img src="step_3.png" alt="Step 1" class="screenshot">
+        </div>
+        <div class="description">
+            <strong>What the AI sees:</strong> 1. The screen shows the Atlassian home page with a sidebar on the left listing apps like Jira, Jira Product Discovery, Teams, and Confluence, along with a section titled "For you" that includes options like Recent, Starred, and Notifications. The main panel displays a welcome message, a "Your apps" section, and areas for "Frequently visited" locations and "What's Next."
+
+2. The page appears to be in a static state, waiting for user interaction. No specific action is highlighted or in progress.
+
+3. The next step would likely involve the user taking an action, such as selecting one of the apps from the sidebar or main panel to navigate to its specific dashboard or section.
+        </div>
+    </div>
+
+    <div class="transition">
+        Between Step 1 and Step 2, an interaction occurred that did not alter the URL, suggesting a client-side change such as form submission, UI update, or element state change. The exact action is not identified, but it resulted in an update visible to the user without navigating away from the current page.
+    </div>
+
+    <div class="step">
+        <div class="step-header">
+            <span class="step-number">Step 2</span>
+            <span class="agent-badge vision">Vision Agent Decision</span>
+            <span class="url">https://home.atlassian.com/o/8c4b6fb0-968f-43da-9d92-a246986f7481/?utm_source=id...</span>
+        </div>
+        <div class="screenshot-container">
+            <img src="step_6.png" alt="Step 2" class="screenshot">
+        </div>
+        <div class="description">
+            <strong>What the AI sees:</strong> 1. The screen displays the "Spaces" section of a Jira interface, showing a search bar with filters for "Jira - software spaces" and "Jira - business spaces." There's a message indicating no spaces were found matching the search criteria.
+
+2. The "More spaces" option was clicked, likely leading to a search within broader or additional spaces given the context.
+
+3. Next, the user may adjust the search filters or parameters to locate existing spaces, or they might click "Create space" to begin creating a new space.
+        </div>
+    </div>
+
+    <div class="transition">
+        Upon clicking 'More spaces', a dropdown menu expanded, revealing additional options within the same page context. This allowed the 'Create Roadmap' button to become visible and accessible for interaction.
+    </div>
+
+    <div class="step">
+        <div class="step-header">
+            <span class="step-number">Step 3</span>
+            <span class="agent-badge vision">Vision Agent Decision</span>
+            <span class="url">https://home.atlassian.com/o/8c4b6fb0-968f-43da-9d92-a246986f7481/?utm_source=id...</span>
+        </div>
+        <div class="screenshot-container">
+            <img src="step_8.png" alt="Step 3" class="screenshot">
+        </div>
+        <div class="description">
+            <strong>What the AI sees:</strong> 1. The screen displays the "Space templates" section with categories listed on the left. The "Made for you" section is highlighted, showing three templates: "Product roadmap," "IT service management," and "Top-level planning," each with visual previews and labels indicating availability or recommendation status.
+
+2. The action taken is a click on the "Product roadmap" card, which is marked as recommended.
+
+3. Next, selecting the "Product roadmap" template will likely lead to a detailed page where the user can configure, edit, or save their newly created roadmap using this template.
+        </div>
+    </div>
+
+    <div class="transition">
+        After clicking on the 'Product roadmap', there is no change in the URL, indicating the action triggers the display of options or settings related to the roadmap on the same page, allowing the user to proceed with saving the newly created roadmap without navigating away.
+    </div>
+
+    <div class="step">
+        <div class="step-header">
+            <span class="step-number">Step 4</span>
+            
+            <span class="url">https://home.atlassian.com/o/8c4b6fb0-968f-43da-9d92-a246986f7481/?utm_source=id...</span>
+        </div>
+        <div class="screenshot-container">
+            <img src="step_9.png" alt="Step 4" class="screenshot">
+        </div>
+        <div class="description">
+            <strong>What the AI sees:</strong> 1. The screen displays a "Product roadmap" template within the "Space templates" section. It includes a description of the template's benefits, such as sharing roadmaps and engaging teams, alongside illustrations and a "Use template" button.
+
+2. No specific action has been taken yet; the page is in a state where the user is reviewing the template details and considering its use.
+
+3. The next expected step is for the user to click the "Use template" button to begin creating a roadmap using this template.
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>Generated by UI Capture System</strong></p>
+        <p>Powered by OpenAI GPT-4 Vision and Playwright Browser Automation</p>
+    </div>
+</body>
+</html>

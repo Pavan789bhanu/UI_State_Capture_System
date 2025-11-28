@@ -1,0 +1,106 @@
+# -----------------------------
+# OS & Editor Junk
+# -----------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# -----------------------------
+# Python
+# -----------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+*.so
+
+# -----------------------------
+# Virtual Environment
+# -----------------------------
+venv/
+.env
+.env.*
+*.env
+
+# -----------------------------
+# Playwright Browser Data
+# -----------------------------
+playwright/.cache/
+playwright-cache/
+browser_session/
+browser_session_data/
+storage_state.json
+**/storage_state.json
+**/browser_state.json
+**/auth_state.json
+
+# -----------------------------
+# Captured Dataset / Screenshots
+# -----------------------------
+# captured_dataset/
+# dataset_output/
+# **/captured_dataset/
+# **/dataset_output/
+
+# -----------------------------
+# Logs / Reports / Debug Dumps
+# -----------------------------
+*.log
+logs/
+workflow_logs/
+report.txt
+transition_logs/
+TRANSITION_ANALYSIS_REPORT.md
+AGENT_IMPROVEMENTS.md
+FIXES.md
+
+# -----------------------------
+# Test Output
+# -----------------------------
+tests/__pycache__/
+tests/output/
+.test_cache/
+coverage/
+.coverage
+htmlcov/
+
+# -----------------------------
+# Notebook Files & Cache
+# -----------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# -----------------------------
+# System Files
+# -----------------------------
+*.tmp
+*.temp
+*.bak
+*.old
+
+# -----------------------------
+# Node/Frontend accidental installs
+# -----------------------------
+node_modules/
+npm-debug.log*
+
+# -----------------------------
+# Backup / Scratch
+# -----------------------------
+scratch/
+sandbox/
+
+# -----------------------------
+# Correction Notes
+/*.md
+# -----------------------------
