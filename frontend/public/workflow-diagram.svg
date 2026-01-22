@@ -1,0 +1,94 @@
+<svg width="800" height="500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="500" fill="#f8fafc"/>
+  
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#0f172a" text-anchor="middle">
+    How WorkflowPro Works
+  </text>
+  
+  <!-- Step 1: Record -->
+  <g transform="translate(80, 100)">
+    <circle cx="60" cy="60" r="50" fill="#0ea5e9" opacity="0.1"/>
+    <circle cx="60" cy="60" r="40" fill="#0ea5e9"/>
+    <text x="60" y="40" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle">1</text>
+    <path d="M 45 60 L 55 70 L 75 50" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="60" y="140" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#0f172a" text-anchor="middle">Record</text>
+    <text x="60" y="165" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">Capture your</text>
+    <text x="60" y="185" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">workflow actions</text>
+  </g>
+  
+  <!-- Arrow 1 -->
+  <path d="M 190 160 L 270 160" stroke="#cbd5e1" stroke-width="3" fill="none"/>
+  <polygon points="270,160 260,155 260,165" fill="#cbd5e1"/>
+  
+  <!-- Step 2: Configure -->
+  <g transform="translate(280, 100)">
+    <circle cx="60" cy="60" r="50" fill="#10b981" opacity="0.1"/>
+    <circle cx="60" cy="60" r="40" fill="#10b981"/>
+    <text x="60" y="40" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle">2</text>
+    <path d="M 50 55 L 50 75 M 40 65 L 60 65 M 70 55 L 70 75" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <text x="60" y="140" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#0f172a" text-anchor="middle">Configure</text>
+    <text x="60" y="165" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">Set up workflow</text>
+    <text x="60" y="185" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">parameters</text>
+  </g>
+  
+  <!-- Arrow 2 -->
+  <path d="M 390 160 L 470 160" stroke="#cbd5e1" stroke-width="3" fill="none"/>
+  <polygon points="470,160 460,155 460,165" fill="#cbd5e1"/>
+  
+  <!-- Step 3: Execute -->
+  <g transform="translate(480, 100)">
+    <circle cx="60" cy="60" r="50" fill="#8b5cf6" opacity="0.1"/>
+    <circle cx="60" cy="60" r="40" fill="#8b5cf6"/>
+    <text x="60" y="40" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle">3</text>
+    <polygon points="50,50 50,70 70,60" fill="white"/>
+    <text x="60" y="140" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#0f172a" text-anchor="middle">Execute</text>
+    <text x="60" y="165" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">Run automated</text>
+    <text x="60" y="185" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">workflows</text>
+  </g>
+  
+  <!-- Arrow 3 -->
+  <path d="M 590 160 L 670 160" stroke="#cbd5e1" stroke-width="3" fill="none"/>
+  <polygon points="670,160 660,155 660,165" fill="#cbd5e1"/>
+  
+  <!-- Step 4: Monitor -->
+  <g transform="translate(680, 100)">
+    <circle cx="60" cy="60" r="50" fill="#f59e0b" opacity="0.1"/>
+    <circle cx="60" cy="60" r="40" fill="#f59e0b"/>
+    <text x="60" y="40" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle">4</text>
+    <path d="M 45 65 Q 60 50 75 65" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="52" cy="63" r="3" fill="white"/>
+    <circle cx="68" cy="63" r="3" fill="white"/>
+    <text x="60" y="140" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#0f172a" text-anchor="middle">Monitor</text>
+    <text x="60" y="165" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">Track results &</text>
+    <text x="60" y="185" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">analytics</text>
+  </g>
+  
+  <!-- Bottom Benefits Section -->
+  <g transform="translate(0, 320)">
+    <!-- Benefit 1 -->
+    <rect x="50" y="0" width="200" height="120" rx="8" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <circle cx="150" cy="35" r="20" fill="#0ea5e9" opacity="0.1"/>
+    <path d="M 145 35 L 147 37 L 155 28" stroke="#0ea5e9" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <text x="150" y="75" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a" text-anchor="middle">Save Time</text>
+    <text x="150" y="95" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">Automate repetitive</text>
+    <text x="150" y="110" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">tasks efficiently</text>
+    
+    <!-- Benefit 2 -->
+    <rect x="270" y="0" width="200" height="120" rx="8" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <circle cx="370" cy="35" r="20" fill="#10b981" opacity="0.1"/>
+    <circle cx="370" cy="35" r="12" stroke="#10b981" stroke-width="2" fill="none"/>
+    <text x="370" y="75" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a" text-anchor="middle">Reduce Errors</text>
+    <text x="370" y="95" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">Consistent execution</text>
+    <text x="370" y="110" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">every time</text>
+    
+    <!-- Benefit 3 -->
+    <rect x="490" y="0" width="200" height="120" rx="8" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <circle cx="590" cy="35" r="20" fill="#8b5cf6" opacity="0.1"/>
+    <path d="M 580 30 L 590 35 L 600 30 M 580 40 L 590 35 L 600 40" stroke="#8b5cf6" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <text x="590" y="75" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#0f172a" text-anchor="middle">Scale Operations</text>
+    <text x="590" y="95" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">Handle multiple</text>
+    <text x="590" y="110" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">workflows at once</text>
+  </g>
+</svg>

@@ -1,0 +1,59 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="600" height="400" fill="#ffffff"/>
+  
+  <!-- Browser Window -->
+  <g transform="translate(50, 40)">
+    <!-- Window Frame -->
+    <rect x="0" y="0" width="500" height="320" rx="8" fill="white" stroke="#cbd5e1" stroke-width="2"/>
+    <!-- Title Bar -->
+    <rect x="0" y="0" width="500" height="35" rx="8" fill="#f1f5f9"/>
+    <circle cx="20" cy="17.5" r="6" fill="#ef4444"/>
+    <circle cx="40" cy="17.5" r="6" fill="#f59e0b"/>
+    <circle cx="60" cy="17.5" r="6" fill="#10b981"/>
+    
+    <!-- Browser Content -->
+    <text x="250" y="23" font-family="monospace" font-size="12" fill="#64748b" text-anchor="middle">example.com</text>
+    
+    <!-- Webpage Content -->
+    <rect x="20" y="55" width="460" height="245" fill="#f8fafc" rx="4"/>
+    
+    <!-- Form Elements -->
+    <rect x="40" y="75" width="200" height="30" fill="white" stroke="#cbd5e1" stroke-width="1" rx="4"/>
+    <text x="50" y="95" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Username</text>
+    
+    <rect x="40" y="120" width="200" height="30" fill="white" stroke="#cbd5e1" stroke-width="1" rx="4"/>
+    <text x="50" y="140" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Password</text>
+    
+    <rect x="40" y="165" width="100" height="35" fill="#0ea5e9" rx="6"/>
+    <text x="90" y="187" font-family="Arial, sans-serif" font-size="14" fill="white" text-anchor="middle">Login</text>
+    
+    <!-- Recording Indicator -->
+    <g transform="translate(300, 75)">
+      <circle cx="60" cy="60" r="50" fill="#ef4444" opacity="0.2"/>
+      <circle cx="60" cy="60" r="35" fill="#ef4444" opacity="0.3"/>
+      <circle cx="60" cy="60" r="20" fill="#ef4444"/>
+      <text x="60" y="140" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#ef4444" text-anchor="middle">Recording...</text>
+    </g>
+    
+    <!-- Action Pointers -->
+    <g opacity="0.7">
+      <!-- Pointer 1 -->
+      <circle cx="45" cy="90" r="8" fill="#0ea5e9" opacity="0.3"/>
+      <circle cx="45" cy="90" r="4" fill="#0ea5e9"/>
+      
+      <!-- Pointer 2 -->
+      <circle cx="45" cy="135" r="8" fill="#0ea5e9" opacity="0.3"/>
+      <circle cx="45" cy="135" r="4" fill="#0ea5e9"/>
+      
+      <!-- Pointer 3 -->
+      <circle cx="45" cy="182" r="8" fill="#0ea5e9" opacity="0.3"/>
+      <circle cx="45" cy="182" r="4" fill="#0ea5e9"/>
+    </g>
+  </g>
+  
+  <!-- Bottom Label -->
+  <text x="300" y="380" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#0f172a" text-anchor="middle">
+    Browser Interaction Capture
+  </text>
+</svg>

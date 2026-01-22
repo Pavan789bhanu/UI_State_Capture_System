@@ -12,7 +12,7 @@
   "linear": {
     "url": "https://linear.app",
     "status_code": 200,
-    "last_validated": "2025-11-28T11:27:34.728523"
+    "last_validated": "2025-12-02T10:51:14.774132"
   },
   "notion": {
     "url": "https://www.notion.so",
@@ -22,6 +22,6 @@
   "jira": {
     "url": "https://id.atlassian.com/login",
     "status_code": 200,
-    "last_validated": "2025-11-28T12:32:33.274987"
+    "last_validated": "2025-12-02T10:59:47.332555"
   }
 }

@@ -4,3 +4,7 @@ python-dotenv
 beautifulsoup4
 Pillow
 imagehash
+fastapi
+uvicorn[standard]
+websockets
+pydantic

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="WorkflowPro - Browser automation and workflow management platform. Automate repetitive tasks, capture UI interactions, and streamline your workflow processes." />
+    <meta name="keywords" content="workflow automation, browser automation, UI capture, task automation, workflow management" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="author" content="WorkflowPro Team" />
+    <title>WorkflowPro - Workflow Automation Platform</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Preconnect to API domain for better performance -->
+    <link rel="preconnect" href="http://localhost:8000" />
+    <link rel="dns-prefetch" href="http://localhost:8000" />
+    
+    <!-- Preload critical font -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="WorkflowPro - Workflow Automation Platform" />
+    <meta property="og:description" content="Automate browser workflows and streamline repetitive tasks with our powerful automation platform." />
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

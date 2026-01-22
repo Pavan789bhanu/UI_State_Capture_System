@@ -1,0 +1,22 @@
+{
+  "linear": {
+    "url": "https://linear.app",
+    "status_code": 200,
+    "last_validated": "2026-01-18T12:11:35.244598"
+  },
+  "example": {
+    "url": "https://example.com",
+    "status_code": 200,
+    "last_validated": "2025-12-25T14:03:45.955347"
+  },
+  "medium": {
+    "url": "https://medium.com",
+    "status_code": 200,
+    "last_validated": "2026-01-06T20:56:43.512840"
+  },
+  "google docs": {
+    "url": "https://docs.google.com",
+    "status_code": 200,
+    "last_validated": "2026-01-18T12:17:27.822291"
+  }
+}

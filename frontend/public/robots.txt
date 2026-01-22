@@ -1,0 +1,5 @@
+# WorkflowPro - Workflow Automation Platform
+User-agent: *
+Allow: /
+
+Sitemap: https://workflowpro.com/sitemap.xml
