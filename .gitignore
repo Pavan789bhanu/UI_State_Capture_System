@@ -101,12 +101,16 @@ scratch/
 sandbox/
 
 # -----------------------------
-# Correction Notes
-/*.md
-# -----------------------------
-
-# -----------------------------
-# Data files
+# Data files, Correction Notes
 docs/
 data/
 # -----------------------------
+
+# -----------------------------
+# SQLite Database Files
+# -----------------------------
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
