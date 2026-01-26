@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, memo } from 'react';
-import { Play, RotateCcw, Sparkles, Plus, Trash2, GripVertical, Eye, Check, X, Loader, Globe, Lock, RefreshCw, ChevronLeft, ChevronRight, Zap, ArrowRight, ThumbsUp, Lightbulb } from 'lucide-react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { Play, RotateCcw, Sparkles, Plus, Trash2, GripVertical, Eye, Check, X, Loader, Globe, Lock, RefreshCw, ChevronLeft, ChevronRight, Zap, ArrowRight, ThumbsUp, Lightbulb, Eraser } from 'lucide-react';
 import { playgroundAPI } from '../services/playgroundAPI';
 import type { WorkflowStep, StepResult } from '../services/playgroundAPI';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +9,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-//lets do this in compoonent based architecture
+// Component-based architecture for better maintainability
 
 export default function PlaygroundPage() {
   const navigate = useNavigate();
@@ -35,6 +35,8 @@ export default function PlaygroundPage() {
   const [hasModifications, setHasModifications] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [hasRun, setHasRun] = useState(false); // Track if workflow has been executed
+  const [showClearDialog, setShowClearDialog] = useState(false); // Professional clear confirmation
   const debounceTimerRef = useRef<number | null>(null);
 
   // Initialize browser on mount (headless mode)
@@ -78,6 +80,13 @@ export default function PlaygroundPage() {
     if (!aiInput.trim()) return;
 
     setIsGenerating(true);
+    
+    // Reset execution state for fresh generation
+    setExecutionResults(new Map());
+    setCurrentStep(-1);
+    setCurrentScreenshot(null);
+    setHasRun(false);
+    
     try {
       const workflow = await playgroundAPI.parseTask(aiInput);
       const generatedSteps = workflow.steps.map((step, index) => ({
@@ -200,7 +209,7 @@ export default function PlaygroundPage() {
     setHasModifications(true);
   };
 
-  const updateStep = (id: string, updates: Partial<WorkflowStep>) => {
+  const updateStep = useCallback((id: string, updates: Partial<WorkflowStep>) => {
     console.log('Updating step:', id, 'with:', updates);
     setSteps(prevSteps => {
       const newSteps = prevSteps.map((step: any) => 
@@ -210,12 +219,12 @@ export default function PlaygroundPage() {
       return newSteps;
     });
     setHasModifications(true);
-  };
+  }, []);
 
-  const removeStep = (id: string) => {
+  const removeStep = useCallback((id: string) => {
     setSteps(prevSteps => prevSteps.filter((step: any) => step.id !== id));
     setHasModifications(true);
-  };
+  }, []);
 
   // @dnd-kit sensors for smooth drag experience
   const sensors = useSensors(
@@ -229,8 +238,8 @@ export default function PlaygroundPage() {
     })
   );
 
-  // Handle drag end event from @dnd-kit
-  const handleDragEnd = (event: DragEndEvent) => {
+  // Handle drag end event from @dnd-kit - memoized for performance
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -242,12 +251,13 @@ export default function PlaygroundPage() {
       });
       setHasModifications(true);
     }
-  };
+  }, []);
 
   const handleRunWorkflow = async () => {
     if (steps.length === 0) return;
 
     setIsRunning(true);
+    setHasRun(true); // Mark that we've run the workflow
     setExecutionResults(new Map());
     setCurrentStep(0);
 
@@ -326,11 +336,43 @@ export default function PlaygroundPage() {
     }
   };
 
+  // Soft reset - clears execution state but keeps steps
   const handleReset = () => {
     setIsRunning(false);
     setCurrentStep(-1);
     setExecutionResults(new Map());
     setCurrentScreenshot(null);
+    setHasRun(false);
+    setPageState(null);
+  };
+
+  // Hard reset - clears everything for a fresh start
+  const handleClearAll = async () => {
+    setShowClearDialog(false);
+    
+    setSteps([]);
+    setOriginalGeneratedSteps([]);
+    setAiInput('');
+    setPreviewSteps([]);
+    setIsRunning(false);
+    setCurrentStep(-1);
+    setExecutionResults(new Map());
+    setCurrentScreenshot(null);
+    setPageState(null);
+    setHasRun(false);
+    setHasModifications(false);
+    setLastSavedWorkflowId(null);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setFeedbackNotes('');
+    
+    // Optionally cleanup and reinitialize browser
+    try {
+      await playgroundAPI.cleanupBrowser();
+      await playgroundAPI.initializeBrowser(true);
+    } catch (err) {
+      console.warn('Browser reset warning:', err);
+    }
   };
 
   const handleSaveWorkflow = async () => {
@@ -389,13 +431,31 @@ export default function PlaygroundPage() {
       <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 style={{ color: 'rgb(var(--text-primary))' }} className="text-2xl font-bold">Workflow Playground</h1>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mt-1">
-              Build, test, and debug workflows in real-time
+            <h1 style={{ color: 'rgb(var(--text-primary))' }} className="text-2xl font-bold flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, rgb(var(--brand)) 0%, rgb(139 92 246) 100%)' }}>
+                <Sparkles className="text-white" size={20} />
+              </span>
+              Workflow Playground
+            </h1>
+            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mt-1 ml-13">
+              Build, test, and debug automation workflows in real-time
               {pageState && ` • ${pageState.title || pageState.url}`}
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Clear All button - appears when there are steps */}
+            {steps.length > 0 && (
+              <button
+                onClick={() => setShowClearDialog(true)}
+                disabled={isRunning}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-orange-600 hover:bg-orange-50 border border-orange-200 hover:border-orange-300"
+                title="Clear all steps and reset playground"
+              >
+                <Eraser size={18} />
+                Clear
+              </button>
+            )}
+            
             {hasModifications && originalGeneratedSteps.length > 0 && (
               <button
                 onClick={() => setShowFeedbackDialog(true)}
@@ -403,17 +463,22 @@ export default function PlaygroundPage() {
                 title="Help AI learn from your corrections"
               >
                 <Lightbulb size={18} />
-                Submit Feedback
+                Feedback
               </button>
             )}
-            <button
-              onClick={handleReset}
-              disabled={!isRunning && currentStep === -1 && executionResults.size === 0}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <RotateCcw size={18} />
-              Reset
-            </button>
+            
+            {/* Reset button - only shows after running */}
+            {hasRun && (
+              <button
+                onClick={handleReset}
+                disabled={isRunning}
+                className="btn-secondary flex items-center gap-2"
+                title="Reset execution state (keep steps)"
+              >
+                <RotateCcw size={18} />
+                Reset
+              </button>
+            )}
             <button
               onClick={handleRunWorkflow}
               disabled={steps.length === 0 || isRunning}
@@ -654,7 +719,8 @@ export default function PlaygroundPage() {
 
               {/* Browser Viewport */}
               <div style={{ backgroundColor: 'rgb(var(--bg-primary))' }} className="flex-1 relative overflow-auto">
-                {currentScreenshot ? (
+                {/* Show live screenshot when running or after run */}
+                {currentScreenshot && hasRun ? (
                   <div className="relative min-h-full">
                     <img 
                       src={`data:image/png;base64,${currentScreenshot}`}
@@ -671,7 +737,102 @@ export default function PlaygroundPage() {
                       </div>
                     )}
                   </div>
+                ) : steps.length > 0 ? (
+                  /* Show generated steps (live-synced with edits) */
+                  <div className="h-full p-6 overflow-y-auto">
+                    <div className="max-w-2xl mx-auto space-y-4">
+                      <div className="text-center mb-6">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 mb-3">
+                          <Check size={16} />
+                          <span className="text-sm font-medium">Workflow Ready</span>
+                        </div>
+                        <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">
+                          {steps.length} steps configured • Click "Run All" to execute
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {steps.map((step: any, index) => (
+                          <div
+                            key={step.id}
+                            style={{ 
+                              backgroundColor: executionResults.has(index) 
+                                ? executionResults.get(index)?.status === 'success' ? '#10b98110' : '#ef444410'
+                                : 'rgb(var(--bg-secondary))', 
+                              borderColor: executionResults.has(index)
+                                ? executionResults.get(index)?.status === 'success' ? '#10b981' : '#ef4444'
+                                : 'rgb(var(--border-color))',
+                            }}
+                            className="border rounded-lg p-4 transition-all"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0">
+                                <div 
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold"
+                                  style={{
+                                    backgroundColor: executionResults.has(index)
+                                      ? executionResults.get(index)?.status === 'success' ? '#10b98130' : '#ef444430'
+                                      : 'rgba(59, 130, 246, 0.2)',
+                                    color: executionResults.has(index)
+                                      ? executionResults.get(index)?.status === 'success' ? '#10b981' : '#ef4444'
+                                      : '#3b82f6'
+                                  }}
+                                >
+                                  {executionResults.has(index) ? (
+                                    executionResults.get(index)?.status === 'success' ? <Check size={16} /> : <X size={16} />
+                                  ) : (
+                                    index + 1
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#3b82f6' }}>
+                                    {step.type}
+                                  </span>
+                                  {currentStep === index && isRunning && (
+                                    <Loader size={12} className="animate-spin text-blue-500" />
+                                  )}
+                                </div>
+                                <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+                                  {step.description || `${step.type} action`}
+                                </p>
+                                {step.url && (
+                                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono truncate">
+                                    📍 {step.url}
+                                  </p>
+                                )}
+                                {step.selector && (
+                                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono truncate">
+                                    🎯 {step.selector}
+                                  </p>
+                                )}
+                                {step.value && (
+                                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono truncate">
+                                    ✏️ "{step.value}"
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {!hasRun && (
+                        <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20">
+                          <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium mb-2 flex items-center gap-2">
+                            <Play size={16} className="text-green-500" />
+                            Ready to run!
+                          </p>
+                          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">
+                            Edit any step on the left panel - changes sync here instantly. Click "Run All" to start automation.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ) : previewSteps.length > 0 || isGeneratingPreview ? (
+                  /* Show AI preview while typing */
                   <div className="h-full p-6 overflow-y-auto">
                     <div className="max-w-2xl mx-auto space-y-4">
                       <div className="text-center mb-6">
@@ -886,6 +1047,72 @@ export default function PlaygroundPage() {
         </div>
       )}
 
+      {/* Professional Clear Confirmation Dialog */}
+      {showClearDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div 
+            style={{ backgroundColor: 'rgb(var(--bg-secondary))' }} 
+            className="rounded-2xl p-0 max-w-md w-full mx-4 shadow-2xl overflow-hidden animate-scale-in"
+          >
+            {/* Header with gradient */}
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <Eraser size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Clear Workspace</h2>
+                  <p className="text-white/80 text-sm">This action cannot be undone</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <div style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))' }} className="p-4 border rounded-xl">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <Trash2 size={20} className="text-orange-600" />
+                  </div>
+                  <div>
+                    <p style={{ color: 'rgb(var(--text-primary))' }} className="font-medium mb-1">
+                      You're about to clear {steps.length} workflow step{steps.length !== 1 ? 's' : ''}
+                    </p>
+                    <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">
+                      All generated steps, AI input, and execution history will be permanently removed. The browser session will be reset.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.2)' }} className="p-3 border rounded-lg">
+                <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm flex items-center gap-2">
+                  <Lightbulb size={16} className="text-blue-500" />
+                  <span>Tip: Use <strong>Reset</strong> to keep your steps but clear execution results.</span>
+                </p>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowClearDialog(false)}
+                  className="flex-1 px-4 py-3 rounded-xl font-medium transition-all border-2 hover:bg-gray-50"
+                  style={{ borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-4 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                >
+                  <Eraser size={18} />
+                  Clear Everything
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Suggestions Panel */}
       {showSuggestions && suggestions.length > 0 && (
         <div className="fixed bottom-4 right-4 w-96 z-40">
@@ -954,6 +1181,21 @@ interface StepCardProps {
 }
 
 const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, isError, result, onUpdate, onRemove, onExecute, isRunning }: StepCardProps) {
+  // Debug: Log when component renders
+  console.log('StepCard render:', step.id, 'url:', step.url, 'description:', step.description);
+  
+  // Wrapper to ensure onUpdate is called properly
+  const handleUpdate = (updates: Partial<WorkflowStep>) => {
+    console.log('StepCard handleUpdate called with:', updates);
+    onUpdate(updates);
+  };
+
+  // Wrapper for onRemove
+  const handleRemove = () => {
+    console.log('StepCard handleRemove called for step:', step.id);
+    onRemove();
+  };
+
   // Use @dnd-kit's useSortable hook
   const {
     attributes,
@@ -998,24 +1240,27 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
         ...style,
         backgroundColor: getStepBg(),
         borderColor: isActive ? '#3b82f6' : isError ? '#ef4444' : 'rgb(var(--border-color))',
+        zIndex: isDragging ? 1000 : 'auto',
       }}
-      className="border-2 rounded-xl p-4 hover-glow step-card"
+      className={`border-2 rounded-xl p-4 hover-glow step-card ${isDragging ? 'shadow-2xl ring-2 ring-blue-400' : ''}`}
     >
       <div className="flex items-start gap-3">
         <div className="flex items-center gap-2 flex-shrink-0">
+          
           <div
             {...attributes}
             {...listeners}
-            className="drag-handle transition-all duration-200 touch-none hover:cursor-grab active:cursor-grabbing"
+            className={`
+              p-1 rounded-lg transition-all duration-200 
+              ${isRunning ? 'cursor-not-allowed opacity-50' : 'cursor-grab hover:bg-gray-100 hover:scale-110 active:cursor-grabbing active:scale-95'}
+              ${isDragging ? 'cursor-grabbing bg-blue-100' : ''}
+            `}
             title="Drag to reorder"
-            style={{ 
-              cursor: isRunning ? 'not-allowed' : 'grab',
-            }}
+            aria-label="Drag handle to reorder step"
           >
             <GripVertical 
-              style={{ color: 'rgb(var(--text-secondary))' }} 
+              style={{ color: isDragging ? '#3b82f6' : 'rgb(var(--text-secondary))' }} 
               size={20}
-              className="transition-all duration-200 hover:scale-110" 
             />
           </div>
           <div
@@ -1035,7 +1280,10 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
               {getStatusIcon()}
             </div>
             <button
-              onClick={onExecute}
+              onClick={(e) => {
+                e.stopPropagation();
+                onExecute();
+              }}
               disabled={isRunning}
               style={{ color: '#0ea5e9' }}
               className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
@@ -1045,18 +1293,19 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
             </button>
           </div>
 
+          
           {step.type === 'navigate' && (
             <input
               type="url"
               value={step.url ?? ''}
-              onChange={(e) => {
-                onUpdate({ url: e.target.value });
-              }}
+              onChange={(e) => handleUpdate({ url: e.target.value })}
+              onFocus={(e) => e.target.select()}
               placeholder="https://example.com"
               autoComplete="off"
+              readOnly={false}
               disabled={isRunning}
               style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-              className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200 cursor-text disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           )}
 
@@ -1064,15 +1313,15 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
             <input
               type="text"
               value={step.selector ?? ''}
-              onChange={(e) => {
-                onUpdate({ selector: e.target.value });
-              }}
+              onChange={(e) => handleUpdate({ selector: e.target.value })}
+              onFocus={(e) => e.target.select()}
               placeholder="CSS selector or XPath"
               autoComplete="off"
-              spellCheck="false"
+              spellCheck={false}
+              readOnly={false}
               disabled={isRunning}
               style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-              className="w-full px-3 py-2 border-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200 cursor-text disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           )}
 
@@ -1080,14 +1329,14 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
             <input
               type="text"
               value={step.value ?? ''}
-              onChange={(e) => {
-                onUpdate({ value: e.target.value });
-              }}
+              onChange={(e) => handleUpdate({ value: e.target.value })}
+              onFocus={(e) => e.target.select()}
               placeholder="Value to enter"
               autoComplete="off"
+              readOnly={false}
               disabled={isRunning}
               style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-              className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200 cursor-text disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           )}
 
@@ -1097,44 +1346,45 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
                 <input
                   type="text"
                   value={step.selector ?? ''}
-                  onChange={(e) => {
-                    onUpdate({ selector: e.target.value });
-                  }}
+                  onChange={(e) => handleUpdate({ selector: e.target.value })}
+                  onFocus={(e) => e.target.select()}
                   placeholder="CSS selector (optional - wait for element)"
                   autoComplete="off"
-                  spellCheck="false"
+                  spellCheck={false}
+                  readOnly={false}
                   disabled={isRunning}
                   style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                  className="w-full px-3 py-2 border-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200 cursor-text mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               )}
               <input
                 type="number"
                 value={step.timeout ?? 5000}
-                onChange={(e) => {
-                  onUpdate({ timeout: parseInt(e.target.value) || 5000 });
-                }}
+                onChange={(e) => handleUpdate({ timeout: parseInt(e.target.value) || 5000 })}
+                onFocus={(e) => e.target.select()}
                 placeholder="Timeout (ms)"
                 min="100"
                 step="1000"
+                readOnly={false}
                 disabled={isRunning}
                 style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200 cursor-text disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </>
           )}
 
+          {/* Description field - always editable */}
           <input
             type="text"
             value={step.description ?? ''}
-            onChange={(e) => {
-              onUpdate({ description: e.target.value });
-            }}
-            placeholder="Description"
+            onChange={(e) => handleUpdate({ description: e.target.value })}
+            onFocus={(e) => e.target.select()}
+            placeholder="Add a description..."
             autoComplete="off"
+            readOnly={false}
             disabled={isRunning}
             style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-secondary))' }}
-            className="w-full px-3 py-2 border-2 rounded-lg text-xs italic focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200 cursor-text disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border-2 rounded-lg text-xs italic focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           {result && (
@@ -1151,14 +1401,25 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
           )}
         </div>
 
+       
         <button
-          onClick={onRemove}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isRunning) {
+              handleRemove();
+            }
+          }}
           disabled={isRunning}
-          style={{ color: '#ef4444' }}
-          className="p-2 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Delete step"
+          className="p-2 rounded-lg transition-all duration-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-100 hover:scale-110 active:scale-95 group"
+          title="Delete this step"
+          aria-label="Delete step"
         >
-          <Trash2 size={16} />
+          <Trash2 
+            size={18} 
+            className="text-red-500 group-hover:text-red-600 transition-colors"
+          />
         </button>
       </div>
     </div>
