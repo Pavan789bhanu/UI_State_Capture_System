@@ -8,47 +8,131 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import type { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { usePlayground } from '../contexts/PlaygroundContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 // Component-based architecture for better maintainability
 
 export default function PlaygroundPage() {
   const navigate = useNavigate();
-  const [steps, setSteps] = useState<WorkflowStep[]>([]);
-  const [originalGeneratedSteps, setOriginalGeneratedSteps] = useState<WorkflowStep[]>([]);
-  const [aiInput, setAiInput] = useState('');
+  
+  // Use PlaygroundContext for persistent state across navigation
+  const { 
+    state: playgroundState,
+    setSteps: setContextSteps,
+    setOriginalGeneratedSteps: setContextOriginalSteps,
+    setAiInput: setContextAiInput,
+    setExecutionResults: setContextExecutionResults,
+    setCurrentScreenshot: setContextScreenshot,
+    setPageState: setContextPageState,
+    setHasRun: setContextHasRun,
+    setHasModifications: setContextHasModifications,
+    setLastSavedWorkflowId: setContextLastSavedId,
+    clearPlayground,
+  } = usePlayground();
+  
+  const { addNotification } = useNotifications();
+  
+  // Local state derived from context for compatibility
+  const [steps, setSteps] = useState<WorkflowStep[]>(playgroundState.steps);
+  const [originalGeneratedSteps, setOriginalGeneratedSteps] = useState<WorkflowStep[]>(playgroundState.originalGeneratedSteps);
+  const [aiInput, setAiInput] = useState(playgroundState.aiInput);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState<number>(-1);
-  const [executionResults, setExecutionResults] = useState<Map<number, StepResult>>(new Map());
-  const [currentScreenshot, setCurrentScreenshot] = useState<string | null>(null);
-  const [pageState, setPageState] = useState<{ url: string; title: string } | null>(null);
+  const [executionResults, setExecutionResults] = useState<Map<number, StepResult>>(playgroundState.executionResults);
+  const [currentScreenshot, setCurrentScreenshot] = useState<string | null>(playgroundState.currentScreenshot);
+  const [pageState, setPageState] = useState<{ url: string; title: string } | null>(playgroundState.pageState);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [isAutoSaving, setIsAutoSaving] = useState(false);
-  const [lastSavedWorkflowId, setLastSavedWorkflowId] = useState<string | null>(null);
+  const [lastSavedWorkflowId, setLastSavedWorkflowId] = useState<string | null>(playgroundState.lastSavedWorkflowId);
   const [previewSteps, setPreviewSteps] = useState<WorkflowStep[]>([]);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [feedbackNotes, setFeedbackNotes] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [hasModifications, setHasModifications] = useState(false);
+  const [hasModifications, setHasModifications] = useState(playgroundState.hasModifications);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [hasRun, setHasRun] = useState(false); // Track if workflow has been executed
+  const [hasRun, setHasRun] = useState(playgroundState.hasRun); // Track if workflow has been executed
   const [showClearDialog, setShowClearDialog] = useState(false); // Professional clear confirmation
   const debounceTimerRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
+  
+  // Use refs to track current state for syncing on unmount
+  const stateRef = useRef({
+    steps,
+    originalGeneratedSteps,
+    aiInput,
+    executionResults,
+    currentScreenshot,
+    pageState,
+    hasRun,
+    hasModifications,
+    lastSavedWorkflowId,
+  });
+  
+  // Keep refs updated with current state
+  useEffect(() => {
+    stateRef.current = {
+      steps,
+      originalGeneratedSteps,
+      aiInput,
+      executionResults,
+      currentScreenshot,
+      pageState,
+      hasRun,
+      hasModifications,
+      lastSavedWorkflowId,
+    };
+  });
+
+  // Sync state to context only on unmount (when navigating away)
+  useEffect(() => {
+    return () => {
+      // Sync final state to context when component unmounts
+      const s = stateRef.current;
+      setContextSteps(s.steps);
+      setContextOriginalSteps(s.originalGeneratedSteps);
+      setContextAiInput(s.aiInput);
+      setContextExecutionResults(s.executionResults);
+      setContextScreenshot(s.currentScreenshot);
+      setContextPageState(s.pageState);
+      setContextHasRun(s.hasRun);
+      setContextHasModifications(s.hasModifications);
+      setContextLastSavedId(s.lastSavedWorkflowId);
+    };
+  }, [
+    setContextSteps, setContextOriginalSteps, setContextAiInput, setContextExecutionResults,
+    setContextScreenshot, setContextPageState, setContextHasRun, setContextHasModifications, setContextLastSavedId
+  ]);
 
   // Initialize browser on mount (headless mode)
   useEffect(() => {
-    playgroundAPI.initializeBrowser(true).catch(console.error);
+    isMountedRef.current = true;
+    
+    // Initialize browser asynchronously without blocking
+    playgroundAPI.initializeBrowser(true).catch((err) => {
+      if (isMountedRef.current) {
+        console.error('Browser initialization failed:', err);
+      }
+    });
     
     return () => {
-      // Cleanup on unmount
-      playgroundAPI.cleanupBrowser().catch(console.error);
+      // Mark as unmounted first to prevent state updates
+      isMountedRef.current = false;
+      
+      // Clear debounce timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
+      
+      // Cleanup browser asynchronously - don't wait for it
+      playgroundAPI.cleanupBrowser().catch(() => {
+        // Silently ignore cleanup errors on unmount
+      });
     };
   }, []);
 
@@ -60,20 +144,33 @@ export default function PlaygroundPage() {
 
     if (aiInput.trim().length > 10) {
       setIsGeneratingPreview(true);
-      debounceTimerRef.current = setTimeout(async () => {
+      debounceTimerRef.current = window.setTimeout(async () => {
+        if (!isMountedRef.current) return;
         try {
           const workflow = await playgroundAPI.parseTask(aiInput);
-          setPreviewSteps(workflow.steps);
+          if (isMountedRef.current) {
+            setPreviewSteps(workflow.steps);
+          }
         } catch (error) {
-          console.error('Preview generation failed:', error);
+          if (isMountedRef.current) {
+            console.error('Preview generation failed:', error);
+          }
         } finally {
-          setIsGeneratingPreview(false);
+          if (isMountedRef.current) {
+            setIsGeneratingPreview(false);
+          }
         }
       }, 1000); // 1 second debounce
     } else {
       setPreviewSteps([]);
       setIsGeneratingPreview(false);
     }
+    
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [aiInput]);
 
   const handleGenerateFromAI = async () => {
@@ -89,6 +186,8 @@ export default function PlaygroundPage() {
     
     try {
       const workflow = await playgroundAPI.parseTask(aiInput);
+      if (!isMountedRef.current) return;
+      
       const generatedSteps = workflow.steps.map((step, index) => ({
         id: `step-${Date.now()}-${index}`,
         ...step,
@@ -103,7 +202,7 @@ export default function PlaygroundPage() {
         const firstNavigate = generatedSteps.find((s: any) => s.type === 'navigate');
         const url = firstNavigate?.url || '';
         const suggestionsResult = await playgroundAPI.getSuggestions(aiInput, url);
-        if (suggestionsResult.suggestions && suggestionsResult.suggestions.length > 0) {
+        if (isMountedRef.current && suggestionsResult.suggestions && suggestionsResult.suggestions.length > 0) {
           setSuggestions(suggestionsResult.suggestions);
           setShowSuggestions(true);
         }
@@ -112,7 +211,9 @@ export default function PlaygroundPage() {
       }
       
       // Auto-save workflow to database
-      await autoSaveWorkflow(generatedSteps, aiInput);
+      if (isMountedRef.current) {
+        await autoSaveWorkflow(generatedSteps, aiInput);
+      }
       
       // Show warnings if any
       if (workflow.warnings && workflow.warnings.length > 0) {
@@ -120,10 +221,17 @@ export default function PlaygroundPage() {
         console.warn('Workflow warnings:', warningMessage);
       }
     } catch (error) {
+      if (!isMountedRef.current) return;
       console.error('Failed to generate workflow:', error);
-      alert('Failed to generate workflow. Please try again.');
+      addNotification({
+        type: 'error',
+        title: 'Generation Failed',
+        message: 'Failed to generate workflow from AI. Please check your description and try again.',
+      });
     } finally {
-      setIsGenerating(false);
+      if (isMountedRef.current) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -264,12 +372,16 @@ export default function PlaygroundPage() {
     try {
       // Ensure browser is initialized
       await playgroundAPI.initializeBrowser(true);
+      if (!isMountedRef.current) return;
       
       for (let i = 0; i < steps.length; i++) {
+        if (!isMountedRef.current) return;
+        
         setCurrentStep(i);
         
         const step = steps[i];
         const result = await playgroundAPI.executeStep(step);
+        if (!isMountedRef.current) return;
         
         // Store result
         setExecutionResults(prev => new Map(prev).set(i, result.result));
@@ -282,14 +394,22 @@ export default function PlaygroundPage() {
         // Update page state
         try {
           const state = await playgroundAPI.getPageState();
-          setPageState(state);
+          if (isMountedRef.current) {
+            setPageState(state);
+          }
         } catch (err) {
           console.warn('Could not fetch page state:', err);
         }
         
         // Stop on error
         if (result.result.status === 'error') {
-          alert(`Error at step ${i + 1}: ${result.result.message}`);
+          if (isMountedRef.current) {
+            addNotification({
+              type: 'error',
+              title: `Step ${i + 1} Failed`,
+              message: result.result.message || 'An error occurred while executing this step.',
+            });
+          }
           break;
         }
         
@@ -297,11 +417,19 @@ export default function PlaygroundPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     } catch (error) {
-      console.error('Execution failed:', error);
-      alert(`Execution failed: ${error}`);
+      if (isMountedRef.current) {
+        console.error('Execution failed:', error);
+        addNotification({
+          type: 'error',
+          title: 'Execution Failed',
+          message: `Workflow execution failed: ${error}`,
+        });
+      }
     } finally {
-      setIsRunning(false);
-      setCurrentStep(-1);
+      if (isMountedRef.current) {
+        setIsRunning(false);
+        setCurrentStep(-1);
+      }
     }
   };
 
@@ -311,9 +439,11 @@ export default function PlaygroundPage() {
     try {
       // Ensure browser is initialized
       await playgroundAPI.initializeBrowser(true);
+      if (!isMountedRef.current) return;
       
       setCurrentStep(index);
       const result = await playgroundAPI.executeStep(step);
+      if (!isMountedRef.current) return;
       
       setExecutionResults(prev => new Map(prev).set(index, result.result));
       
@@ -323,16 +453,26 @@ export default function PlaygroundPage() {
       
       try {
         const state = await playgroundAPI.getPageState();
-        setPageState(state);
+        if (isMountedRef.current) {
+          setPageState(state);
+        }
       } catch (err) {
         console.warn('Could not fetch page state:', err);
       }
       
     } catch (error) {
-      console.error('Step execution failed:', error);
-      alert(`Failed to execute step: ${error}`);
+      if (isMountedRef.current) {
+        console.error('Step execution failed:', error);
+        addNotification({
+          type: 'error',
+          title: 'Step Execution Failed',
+          message: `Failed to execute step: ${error}`,
+        });
+      }
     } finally {
-      setCurrentStep(-1);
+      if (isMountedRef.current) {
+        setCurrentStep(-1);
+      }
     }
   };
 
@@ -350,6 +490,7 @@ export default function PlaygroundPage() {
   const handleClearAll = async () => {
     setShowClearDialog(false);
     
+    // Clear local state
     setSteps([]);
     setOriginalGeneratedSteps([]);
     setAiInput('');
@@ -366,10 +507,15 @@ export default function PlaygroundPage() {
     setShowSuggestions(false);
     setFeedbackNotes('');
     
+    // Also clear context state for full reset
+    clearPlayground();
+    
     // Optionally cleanup and reinitialize browser
     try {
       await playgroundAPI.cleanupBrowser();
-      await playgroundAPI.initializeBrowser(true);
+      if (isMountedRef.current) {
+        await playgroundAPI.initializeBrowser(true);
+      }
     } catch (err) {
       console.warn('Browser reset warning:', err);
     }
@@ -377,24 +523,40 @@ export default function PlaygroundPage() {
 
   const handleSaveWorkflow = async () => {
     if (!workflowName.trim()) {
-      alert('Please enter a workflow name');
+      addNotification({
+        type: 'warning',
+        title: 'Missing Name',
+        message: 'Please enter a workflow name before saving.',
+      });
       return;
     }
 
     try {
       await playgroundAPI.saveWorkflow(workflowName, workflowDescription, steps);
-      alert('Workflow saved successfully!');
+      addNotification({
+        type: 'success',
+        title: 'Workflow Saved',
+        message: `"${workflowName}" has been saved successfully!`,
+      });
       setShowSaveDialog(false);
       navigate('/workflows');
     } catch (error) {
       console.error('Failed to save workflow:', error);
-      alert('Failed to save workflow');
+      addNotification({
+        type: 'error',
+        title: 'Save Failed',
+        message: 'Failed to save workflow. Please try again.',
+      });
     }
   };
 
   const handleSubmitFeedback = async (feedbackType: 'correction' | 'success' | 'failure') => {
     if (!aiInput || originalGeneratedSteps.length === 0) {
-      alert('No workflow to provide feedback on');
+      addNotification({
+        type: 'warning',
+        title: 'No Workflow',
+        message: 'No workflow available to provide feedback on.',
+      });
       return;
     }
 
@@ -412,23 +574,31 @@ export default function PlaygroundPage() {
         feedbackNotes
       );
       
-      alert(result.message + '\n\nThank you for helping improve the AI! 🎉');
+      addNotification({
+        type: 'success',
+        title: 'Feedback Submitted',
+        message: result.message + ' Thank you for helping improve the AI! 🎉',
+      });
       setShowFeedbackDialog(false);
       setFeedbackNotes('');
       setHasModifications(false);
       
     } catch (error) {
       console.error('Failed to submit feedback:', error);
-      alert('Failed to submit feedback. Please try again.');
+      addNotification({
+        type: 'error',
+        title: 'Feedback Failed',
+        message: 'Failed to submit feedback. Please try again.',
+      });
     } finally {
       setIsSubmittingFeedback(false);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="border-b px-6 py-4">
+      <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="border-b px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <h1 style={{ color: 'rgb(var(--text-primary))' }} className="text-2xl font-bold flex items-center gap-3">

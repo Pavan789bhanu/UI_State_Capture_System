@@ -1,12 +1,14 @@
 import { Home, Workflow, Activity, TrendingUp, Settings, ChevronRight, LogOut, User, FlaskConical } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRipple } from '../../hooks/useRipple';
+import { useAuth } from '../../contexts/AuthContext';
 import { useState, useEffect, useRef } from 'react';
 
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const createRipple = useRipple();
+  const { logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -168,9 +170,11 @@ export default function Sidebar() {
               <button
                 onClick={(e) => {
                   createRipple(e);
-                  // Add logout logic here
+                  logout();
+                  navigate('/login');
+                  setShowProfileMenu(false);
                 }}
-                className="w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ripple-container text-red-500"
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ripple-container text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
               >
                 <LogOut size={16} strokeWidth={2} />
                 <span>Logout</span>

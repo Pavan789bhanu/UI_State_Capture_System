@@ -1,7 +1,6 @@
-import { Bell, Search, Sun, Moon, Monitor, Settings, LogOut } from 'lucide-react';
+import { Bell, Search, Sun, Moon, Monitor, Settings } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useRipple } from '../../hooks/useRipple';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -11,7 +10,6 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme, effectsEnabled, setEffectsEnabled } = useTheme();
-  const { logout } = useAuth();
   const { unreadCount } = useNotifications();
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -189,17 +187,17 @@ export default function Header() {
                 <button
                   onClick={(e) => {
                     createRipple(e);
-                    logout();
-                    navigate('/login');
+                    navigate('/settings');
+                    setShowSettings(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all ripple-container text-sm font-medium"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all ripple-container text-sm font-medium hover:bg-opacity-80"
                   style={{
                     color: 'rgb(var(--text-primary))',
                     backgroundColor: 'rgb(var(--bg-tertiary))',
                   }}
                 >
-                  <LogOut size={16} strokeWidth={2} />
-                  <span>Logout</span>
+                  <Settings size={16} strokeWidth={2} />
+                  <span>All Settings</span>
                 </button>
               </div>
             </div>
