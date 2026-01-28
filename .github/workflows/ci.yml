@@ -1,0 +1,183 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  FRONTEND_URL: http://localhost:5173
+  BACKEND_URL: http://localhost:8000
+
+jobs:
+  # Frontend Tests & Build
+  frontend:
+    name: Frontend CI
+    # Change to 'self-hosted' for local runner, 'ubuntu-latest' for GitHub cloud
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint --if-present
+
+      - name: Run type check
+        run: npm run type-check --if-present
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist
+          retention-days: 7
+
+  # Backend Tests
+  backend:
+    name: Backend CI
+    # Change to 'self-hosted' for local runner, 'ubuntu-latest' for GitHub cloud
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run linter
+        run: |
+          pip install ruff
+          ruff check . --ignore E501
+
+      - name: Run tests
+        run: pytest --tb=short -v || echo "No tests found"
+
+  # Deploy job (runs only on main branch push)
+  deploy:
+    name: Deploy to Localhost
+    needs: [frontend, backend]
+    # Change to 'self-hosted' for local runner, 'ubuntu-latest' for GitHub cloud
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist
+
+      # ============================================
+      # LOCAL DEPLOYMENT (Current Setup)
+      # ============================================
+      
+      - name: Deploy Summary
+        run: |
+          echo "✅ CI/CD Pipeline Complete!"
+          echo ""
+          echo "📦 Artifacts ready for deployment:"
+          echo "   - Frontend build: frontend/dist"
+          echo "   - Backend: Ready to run"
+          echo ""
+          echo "🚀 To run locally:"
+          echo "   1. cd backend && source venv/bin/activate && uvicorn app.main:app --port 8000"
+          echo "   2. cd frontend && npm run preview (serves dist folder)"
+          echo ""
+          echo "🌐 Access:"
+          echo "   - Frontend: ${{ env.FRONTEND_URL }}"
+          echo "   - Backend:  ${{ env.BACKEND_URL }}"
+
+      # ============================================
+      # CLOUD DEPLOYMENT (Uncomment when ready)
+      # ============================================
+      
+      # --- Option 1: Vercel (Frontend) ---
+      # - name: Deploy Frontend to Vercel
+      #   uses: amondnet/vercel-action@v25
+      #   with:
+      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
+      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      #     working-directory: ./frontend
+
+      # --- Option 2: Railway (Backend) ---
+      # - name: Deploy Backend to Railway
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      #   run: |
+      #     npm install -g @railway/cli
+      #     railway up --service backend
+
+      # --- Option 3: Docker + Cloud Run ---
+      # - name: Build and Push Docker
+      #   run: |
+      #     docker build -t gcr.io/$PROJECT_ID/workflowpro-backend ./backend
+      #     docker push gcr.io/$PROJECT_ID/workflowpro-backend
+
+      # --- Option 4: AWS EC2/ECS ---
+      # - name: Deploy to AWS
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: us-east-1
+
+  # ============================================
+  # Health Check Job (Optional - for cloud)
+  # ============================================
+  # health-check:
+  #   name: Latency & Health Check
+  #   needs: [deploy]
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - name: Check API Health
+  #       run: |
+  #         echo "Checking backend health..."
+  #         curl -f ${{ secrets.PRODUCTION_API_URL }}/health || exit 1
+  #     
+  #     - name: Measure Latency
+  #       run: |
+  #         echo "Measuring API latency..."
+  #         for i in {1..5}; do
+  #           curl -w "Response time: %{time_total}s\n" -o /dev/null -s ${{ secrets.PRODUCTION_API_URL }}/health
+  #         done

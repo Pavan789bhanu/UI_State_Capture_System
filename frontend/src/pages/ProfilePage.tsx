@@ -5,10 +5,18 @@ export default function ProfilePage() {
   const createRipple = useRipple();
 
   return (
-    <div className="p-6">
-      <div className="mb-6 animate-fade-in-up">
-        <h1 style={{ color: 'rgb(var(--text-primary))' }} className="text-2xl font-semibold">Profile</h1>
-        <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mt-1">Manage your profile information and preferences</p>
+    <div className="p-6 max-w-3xl mx-auto">
+      <div className="mb-8 animate-fade-in-up">
+        <h1 className="text-3xl font-bold text-white flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl shadow-purple-500/30" 
+            style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)' }}>
+            <User className="text-white" size={22} />
+          </div>
+          <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+            Profile
+          </span>
+        </h1>
+        <p className="text-gray-400 text-base mt-2 ml-16">Manage your profile information and preferences</p>
       </div>
 
       <div className="max-w-3xl space-y-6">

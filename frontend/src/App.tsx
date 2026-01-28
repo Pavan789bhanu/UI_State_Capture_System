@@ -8,6 +8,7 @@ import { lazy, Suspense } from 'react';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
 import './index.css';
 
 // Lazy load pages for better performance
@@ -75,14 +76,15 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Public route */}
+      {/* Public routes */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={
-        isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
+        isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
       } />
       
       {/* Protected routes with shared Layout */}
       <Route element={<ProtectedLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/workflows" element={<WorkflowsPage />} />
         <Route path="/executions" element={<ExecutionsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />

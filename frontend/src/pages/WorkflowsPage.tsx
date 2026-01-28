@@ -17,8 +17,6 @@ export default function WorkflowsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('workflowViewMode') as ViewMode) || 'grid';
   });
@@ -57,9 +55,8 @@ export default function WorkflowsPage() {
       addNotification({
         type: 'success',
         title: 'Workflow Deleted',
-        message: `"${workflowToDelete?.name}" has been successfully deleted.`,
+        message: 'Workflow has been successfully deleted.',
       });
-      setWorkflowToDelete(null);
     },
     onError: () => {
       addNotification({
@@ -114,16 +111,19 @@ export default function WorkflowsPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6 animate-fade-in-up">
+      <div className="mb-8 animate-fade-in-up">
         <div className="flex items-center justify-between">
           <div>
-            <h1 style={{ color: 'rgb(var(--text-primary))' }} className="text-2xl font-bold flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, rgb(var(--brand)) 0%, #8b5cf6 100%)' }}>
-                <Zap className="text-white" size={18} />
+            <h1 className="text-3xl font-bold text-white flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/30" 
+                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
+                <Zap className="text-white" size={22} />
               </div>
-              Workflows
+              <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Workflows
+              </span>
             </h1>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mt-1">
+            <p className="text-gray-400 text-base mt-2 ml-16">
               Manage and monitor your automation workflows
             </p>
           </div>
@@ -234,10 +234,7 @@ export default function WorkflowsPage() {
                     setSelectedWorkflow(workflow);
                     setShowEditModal(true);
                   }}
-                  onDelete={() => {
-                    setWorkflowToDelete(workflow);
-                    setShowDeleteDialog(true);
-                  }}
+                  onDelete={() => deleteWorkflowMutation.mutate(workflow.id)}
                 />
               </div>
             ))}
@@ -253,24 +250,21 @@ export default function WorkflowsPage() {
                     setSelectedWorkflow(workflow);
                     setShowEditModal(true);
                   }}
-                  onDelete={() => {
-                    setWorkflowToDelete(workflow);
-                    setShowDeleteDialog(true);
-                  }}
+                  onDelete={() => deleteWorkflowMutation.mutate(workflow.id)}
                 />
               </div>
             ))}
           </div>
         ) : (
-          <div className="card overflow-hidden">
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
             <table className="w-full">
-              <thead style={{ borderColor: 'rgb(var(--border-color))' }} className="border-b">
+              <thead className="border-b border-white/10 bg-white/5">
                 <tr>
-                  <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase">Name</th>
-                  <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase">Status</th>
-                  <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase hidden md:table-cell">Last Run</th>
-                  <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase hidden lg:table-cell">Success Rate</th>
-                  <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-right px-4 py-3 text-xs font-semibold uppercase">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase text-gray-400">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase text-gray-400">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase hidden md:table-cell text-gray-400">Last Run</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase hidden lg:table-cell text-gray-400">Success Rate</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold uppercase text-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -283,10 +277,7 @@ export default function WorkflowsPage() {
                       setSelectedWorkflow(workflow);
                       setShowEditModal(true);
                     }}
-                    onDelete={() => {
-                      setWorkflowToDelete(workflow);
-                      setShowDeleteDialog(true);
-                    }}
+                    onDelete={() => deleteWorkflowMutation.mutate(workflow.id)}
                   />
                 ))}
               </tbody>
@@ -331,104 +322,14 @@ export default function WorkflowsPage() {
           }} 
         />
       )}
-      
-      {/* Professional Delete Confirmation Dialog */}
-      {showDeleteDialog && workflowToDelete && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-          <div 
-            className="relative max-w-md w-full m-4 rounded-2xl overflow-hidden shadow-2xl animate-scale-in"
-            style={{ backgroundColor: 'rgb(var(--bg-primary))' }}
-          >
-            {/* Header with gradient */}
-            <div className="relative px-6 py-5 bg-gradient-to-r from-red-500 to-orange-500">
-              <div className="absolute inset-0 bg-black/10" />
-              <div className="relative flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <AlertTriangle className="w-6 h-6 text-white" strokeWidth={2} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Delete Workflow</h2>
-                  <p className="text-sm text-white/80">This action cannot be undone</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Content */}
-            <div className="p-6">
-              <div 
-                className="p-4 rounded-xl mb-4"
-                style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}
-              >
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mb-2">
-                  You are about to delete:
-                </p>
-                <p style={{ color: 'rgb(var(--text-primary))' }} className="font-semibold text-lg">
-                  "{workflowToDelete.name}"
-                </p>
-                {workflowToDelete.execution_count && workflowToDelete.execution_count > 0 && (
-                  <p className="text-sm text-amber-500 mt-2 flex items-center gap-1.5">
-                    <AlertTriangle size={14} />
-                    This workflow has {workflowToDelete.execution_count} execution(s)
-                  </p>
-                )}
-              </div>
-              
-              <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm leading-relaxed">
-                All associated data including execution history, logs, and configurations will be permanently removed from the system.
-              </p>
-            </div>
-            
-            {/* Actions */}
-            <div 
-              className="flex gap-3 p-6 pt-0"
-            >
-              <button
-                onClick={() => {
-                  setShowDeleteDialog(false);
-                  setWorkflowToDelete(null);
-                }}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ 
-                  backgroundColor: 'rgb(var(--bg-tertiary))',
-                  color: 'rgb(var(--text-primary))',
-                  border: '1px solid rgb(var(--border-color))'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  deleteWorkflowMutation.mutate(workflowToDelete.id);
-                  setShowDeleteDialog(false);
-                }}
-                disabled={deleteWorkflowMutation.isPending}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium text-white transition-all duration-200 hover:scale-105 active:scale-95 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/25 disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {deleteWorkflowMutation.isPending ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Deleting...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <Trash2 size={16} strokeWidth={2} />
-                    Delete Workflow
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 function WorkflowCard({ workflow, onRun, onEdit, onDelete }: { workflow: Workflow; onRun: () => void; onEdit: () => void; onDelete: () => void }) {
   const createRipple = useRipple();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
   
   const successRate = (workflow.execution_count ?? 0) > 0 
     ? Math.round(((workflow.success_count ?? 0) / (workflow.execution_count ?? 1)) * 100)
@@ -439,18 +340,18 @@ function WorkflowCard({ workflow, onRun, onEdit, onDelete }: { workflow: Workflo
     : 'Never';
   
   return (
-    <div className="card p-4 hover-glow">
+    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 hover:bg-white/10 hover:border-indigo-500/30 transition-all duration-300">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 style={{ color: 'rgb(var(--text-primary))' }} className="text-base font-semibold">{workflow.name}</h3>
-          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mt-1 line-clamp-2">{workflow.description}</p>
+          <h3 className="text-base font-semibold text-white">{workflow.name}</h3>
+          <p className="text-sm text-gray-400 mt-1 line-clamp-2">{workflow.description}</p>
         </div>
         <span 
-          style={{ 
-            backgroundColor: workflow.status === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'rgb(var(--bg-tertiary))',
-            color: workflow.status === 'active' ? '#22c55e' : 'rgb(var(--text-secondary))'
-          }} 
-          className="px-2 py-1 rounded-md text-xs font-medium capitalize"
+          className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${
+            workflow.status === 'active' 
+              ? 'bg-emerald-500/15 text-emerald-400' 
+              : 'bg-white/10 text-gray-400'
+          }`}
         >
           {workflow.status}
         </span>
@@ -459,30 +360,27 @@ function WorkflowCard({ workflow, onRun, onEdit, onDelete }: { workflow: Workflo
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Clock size={16} style={{ color: 'rgb(var(--text-secondary))' }} strokeWidth={2} />
-            <span style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">Last Run</span>
+            <Clock size={14} className="text-gray-500" strokeWidth={2} />
+            <span className="text-xs text-gray-500">Last Run</span>
           </div>
-          <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">{lastRun}</p>
+          <p className="text-sm font-medium text-white">{lastRun}</p>
         </div>
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={16} style={{ color: 'rgb(var(--text-secondary))' }} strokeWidth={2} />
-            <span style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">Success</span>
+            <TrendingUp size={14} className="text-gray-500" strokeWidth={2} />
+            <span className="text-xs text-gray-500">Success</span>
           </div>
-          <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">{successRate}%</p>
+          <p className={`text-sm font-semibold ${successRate >= 70 ? 'text-emerald-400' : successRate >= 40 ? 'text-amber-400' : 'text-red-400'}`}>{successRate}%</p>
         </div>
       </div>
 
-      <div style={{ borderColor: 'rgb(var(--border-color))' }} className="flex items-center gap-2 pt-4 border-t">
+      <div className="flex items-center gap-2 pt-4 border-t border-white/10 relative">
         <button 
           onClick={(e) => {
             createRipple(e);
             onRun();
           }} 
-          style={{ backgroundColor: 'rgb(var(--brand))' }} 
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(var(--brand-hover))'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(var(--brand))'}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/25"
         >
           <Play size={16} strokeWidth={2} />
           Run
@@ -490,49 +388,91 @@ function WorkflowCard({ workflow, onRun, onEdit, onDelete }: { workflow: Workflo
         <button 
           onClick={(e) => {
             createRipple(e);
-            onEdit();
+            setShowEditConfirm(true);
           }} 
-          style={{ 
-            backgroundColor: 'rgb(var(--bg-tertiary))', 
-            color: 'rgb(var(--text-secondary))',
-            borderColor: 'rgb(var(--border-color))'
-          }} 
-          className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(var(--border-color))';
-            e.currentTarget.style.color = 'rgb(var(--text-primary))';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(var(--bg-tertiary))';
-            e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-          }}
+          className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
         >
           <Edit3 size={16} strokeWidth={2} />
         </button>
         <button 
           onClick={(e) => {
             createRipple(e);
-            onDelete();
+            setShowDeleteConfirm(true);
           }} 
-          style={{ 
-            backgroundColor: 'rgb(var(--bg-tertiary))', 
-            color: 'rgb(var(--text-secondary))',
-            borderColor: 'rgb(var(--border-color))'
-          }} 
-          className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-            e.currentTarget.style.color = '#ef4444';
-            e.currentTarget.style.borderColor = '#ef4444';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(var(--bg-tertiary))';
-            e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-            e.currentTarget.style.borderColor = 'rgb(var(--border-color))';
-          }}
+          className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border border-white/10 bg-white/5 text-gray-400 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30"
         >
           <Trash2 size={16} strokeWidth={2} />
         </button>
+        
+        {/* Inline Edit Confirmation Popover */}
+        {showEditConfirm && (
+          <div className="absolute bottom-full right-10 mb-2 w-56 z-50 animate-scale-in">
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2">
+                <p className="text-white text-sm font-semibold flex items-center gap-2">
+                  <Edit3 size={14} />
+                  Edit Workflow?
+                </p>
+              </div>
+              <div className="p-3">
+                <p className="text-gray-400 text-xs mb-3">Open editor for "{workflow.name}"</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowEditConfirm(false)}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditConfirm(false);
+                      onEdit();
+                    }}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Edit3 size={12} />
+                    Edit
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Inline Delete Confirmation Popover */}
+        {showDeleteConfirm && (
+          <div className="absolute bottom-full right-0 mb-2 w-64 z-50 animate-scale-in">
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2">
+                <p className="text-white text-sm font-semibold flex items-center gap-2">
+                  <AlertTriangle size={14} />
+                  Delete Workflow?
+                </p>
+              </div>
+              <div className="p-3">
+                <p className="text-gray-400 text-xs mb-3">This will permanently remove "{workflow.name}" and all associated data.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      onDelete();
+                    }}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -541,6 +481,8 @@ function WorkflowCard({ workflow, onRun, onEdit, onDelete }: { workflow: Workflo
 // List View Item Component
 function WorkflowListItem({ workflow, onRun, onEdit, onDelete }: { workflow: Workflow; onRun: () => void; onEdit: () => void; onDelete: () => void }) {
   const createRipple = useRipple();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
   
   const successRate = (workflow.execution_count ?? 0) > 0 
     ? Math.round(((workflow.success_count ?? 0) / (workflow.execution_count ?? 1)) * 100)
@@ -551,52 +493,49 @@ function WorkflowListItem({ workflow, onRun, onEdit, onDelete }: { workflow: Wor
     : 'Never';
   
   return (
-    <div className="card p-4 hover-glow">
+    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 hover:bg-white/10 hover:border-indigo-500/30 transition-all duration-300">
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         {/* Main Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
-            <h3 style={{ color: 'rgb(var(--text-primary))' }} className="text-base font-semibold truncate">{workflow.name}</h3>
+            <h3 className="text-base font-semibold text-white truncate">{workflow.name}</h3>
             <span 
-              style={{ 
-                backgroundColor: workflow.status === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'rgb(var(--bg-tertiary))',
-                color: workflow.status === 'active' ? '#22c55e' : 'rgb(var(--text-secondary))'
-              }} 
-              className="px-2 py-0.5 rounded-md text-xs font-medium capitalize shrink-0"
+              className={`px-2.5 py-0.5 rounded-lg text-xs font-semibold capitalize shrink-0 ${
+                workflow.status === 'active' 
+                  ? 'bg-emerald-500/15 text-emerald-400' 
+                  : 'bg-white/10 text-gray-400'
+              }`}
             >
               {workflow.status}
             </span>
           </div>
-          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm line-clamp-1">{workflow.description || 'No description'}</p>
+          <p className="text-sm text-gray-400 line-clamp-1">{workflow.description || 'No description'}</p>
         </div>
 
         {/* Stats */}
         <div className="flex items-center gap-6 shrink-0">
           <div className="text-center">
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mb-0.5">Last Run</p>
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium whitespace-nowrap">{lastRun}</p>
+            <p className="text-xs text-gray-500 mb-0.5">Last Run</p>
+            <p className="text-sm font-medium text-white whitespace-nowrap">{lastRun}</p>
           </div>
           <div className="text-center">
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mb-0.5">Success</p>
-            <p style={{ color: successRate >= 70 ? '#22c55e' : successRate >= 40 ? '#eab308' : '#ef4444' }} className="text-sm font-semibold">{successRate}%</p>
+            <p className="text-xs text-gray-500 mb-0.5">Success</p>
+            <p className={`text-sm font-semibold ${successRate >= 70 ? 'text-emerald-400' : successRate >= 40 ? 'text-amber-400' : 'text-red-400'}`}>{successRate}%</p>
           </div>
           <div className="text-center">
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mb-0.5">Runs</p>
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">{workflow.execution_count ?? 0}</p>
+            <p className="text-xs text-gray-500 mb-0.5">Runs</p>
+            <p className="text-sm font-medium text-white">{workflow.execution_count ?? 0}</p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 relative">
           <button 
             onClick={(e) => {
               createRipple(e);
               onRun();
             }} 
-            style={{ backgroundColor: 'rgb(var(--brand))' }} 
-            className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 shadow-sm"
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(var(--brand-hover))'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(var(--brand))'}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/25"
           >
             <Play size={14} strokeWidth={2} />
             Run
@@ -604,49 +543,91 @@ function WorkflowListItem({ workflow, onRun, onEdit, onDelete }: { workflow: Wor
           <button 
             onClick={(e) => {
               createRipple(e);
-              onEdit();
+              setShowEditConfirm(true);
             }} 
-            style={{ 
-              backgroundColor: 'rgb(var(--bg-tertiary))', 
-              color: 'rgb(var(--text-secondary))',
-              borderColor: 'rgb(var(--border-color))'
-            }} 
-            className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgb(var(--border-color))';
-              e.currentTarget.style.color = 'rgb(var(--text-primary))';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgb(var(--bg-tertiary))';
-              e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-            }}
+            className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
           >
             <Edit3 size={16} strokeWidth={2} />
           </button>
           <button 
             onClick={(e) => {
               createRipple(e);
-              onDelete();
+              setShowDeleteConfirm(true);
             }} 
-            style={{ 
-              backgroundColor: 'rgb(var(--bg-tertiary))', 
-              color: 'rgb(var(--text-secondary))',
-              borderColor: 'rgb(var(--border-color))'
-            }} 
-            className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-              e.currentTarget.style.color = '#ef4444';
-              e.currentTarget.style.borderColor = '#ef4444';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgb(var(--bg-tertiary))';
-              e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-              e.currentTarget.style.borderColor = 'rgb(var(--border-color))';
-            }}
+            className="p-2 rounded-lg transition-all duration-200 ripple-container hover:scale-105 active:scale-95 border border-white/10 bg-white/5 text-gray-400 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/30"
           >
             <Trash2 size={16} strokeWidth={2} />
           </button>
+          
+          {/* Inline Edit Confirmation Popover */}
+          {showEditConfirm && (
+            <div className="absolute top-full right-10 mt-2 w-56 z-50 animate-scale-in">
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2">
+                  <p className="text-white text-sm font-semibold flex items-center gap-2">
+                    <Edit3 size={14} />
+                    Edit Workflow?
+                  </p>
+                </div>
+                <div className="p-3">
+                  <p className="text-gray-400 text-xs mb-3">Open editor for "{workflow.name}"</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowEditConfirm(false)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowEditConfirm(false);
+                        onEdit();
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Edit3 size={12} />
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Inline Delete Confirmation Popover */}
+          {showDeleteConfirm && (
+            <div className="absolute top-full right-0 mt-2 w-64 z-50 animate-scale-in">
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2">
+                  <p className="text-white text-sm font-semibold flex items-center gap-2">
+                    <AlertTriangle size={14} />
+                    Delete Workflow?
+                  </p>
+                </div>
+                <div className="p-3">
+                  <p className="text-gray-400 text-xs mb-3">This will permanently remove "{workflow.name}" and all associated data.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        onDelete();
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Trash2 size={12} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -655,6 +636,9 @@ function WorkflowListItem({ workflow, onRun, onEdit, onDelete }: { workflow: Wor
 
 // Compact Table Row Component
 function WorkflowTableRow({ workflow, onRun, onEdit, onDelete }: { workflow: Workflow; onRun: () => void; onEdit: () => void; onDelete: () => void }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  
   const successRate = (workflow.execution_count ?? 0) > 0 
     ? Math.round(((workflow.success_count ?? 0) / (workflow.execution_count ?? 1)) * 100)
     : 0;
@@ -664,38 +648,35 @@ function WorkflowTableRow({ workflow, onRun, onEdit, onDelete }: { workflow: Wor
     : 'Never';
   
   return (
-    <tr 
-      style={{ borderColor: 'rgb(var(--border-color))' }} 
-      className="border-b last:border-b-0 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-    >
+    <tr className="border-b border-white/10 last:border-b-0 transition-colors hover:bg-white/5">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}>
-            <Zap size={14} style={{ color: 'rgb(var(--brand))' }} />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-white/10">
+            <Zap size={14} className="text-indigo-400" />
           </div>
           <div className="min-w-0">
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="font-medium text-sm truncate">{workflow.name}</p>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs truncate max-w-[200px]">{workflow.description || 'No description'}</p>
+            <p className="font-medium text-sm truncate text-white">{workflow.name}</p>
+            <p className="text-xs truncate max-w-[200px] text-gray-500">{workflow.description || 'No description'}</p>
           </div>
         </div>
       </td>
       <td className="px-4 py-3">
         <span 
-          style={{ 
-            backgroundColor: workflow.status === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'rgb(var(--bg-tertiary))',
-            color: workflow.status === 'active' ? '#22c55e' : 'rgb(var(--text-secondary))'
-          }} 
-          className="px-2 py-1 rounded-md text-xs font-medium capitalize"
+          className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize ${
+            workflow.status === 'active' 
+              ? 'bg-emerald-500/15 text-emerald-400' 
+              : 'bg-white/10 text-gray-400'
+          }`}
         >
           {workflow.status}
         </span>
       </td>
       <td className="px-4 py-3 hidden md:table-cell">
-        <span style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">{lastRun}</span>
+        <span className="text-sm text-gray-400">{lastRun}</span>
       </td>
       <td className="px-4 py-3 hidden lg:table-cell">
         <div className="flex items-center gap-2">
-          <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}>
+          <div className="w-16 h-1.5 rounded-full overflow-hidden bg-white/10">
             <div 
               className="h-full rounded-full transition-all duration-300"
               style={{ 
@@ -704,53 +685,102 @@ function WorkflowTableRow({ workflow, onRun, onEdit, onDelete }: { workflow: Wor
               }}
             />
           </div>
-          <span style={{ color: successRate >= 70 ? '#22c55e' : successRate >= 40 ? '#eab308' : '#ef4444' }} className="text-sm font-medium">{successRate}%</span>
+          <span className={`text-sm font-medium ${successRate >= 70 ? 'text-emerald-400' : successRate >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>{successRate}%</span>
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1 relative">
           <button 
             onClick={onRun}
-            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110"
-            style={{ color: 'rgb(var(--brand))' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(var(--brand), 0.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110 text-indigo-400 hover:bg-indigo-500/15"
             title="Run workflow"
           >
             <Play size={16} strokeWidth={2} />
           </button>
           <button 
-            onClick={onEdit}
-            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110"
-            style={{ color: 'rgb(var(--text-secondary))' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgb(var(--bg-tertiary))';
-              e.currentTarget.style.color = 'rgb(var(--text-primary))';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-            }}
+            onClick={() => setShowEditConfirm(true)}
+            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110 text-gray-400 hover:bg-white/10 hover:text-white"
             title="Edit workflow"
           >
             <Edit3 size={16} strokeWidth={2} />
           </button>
           <button 
-            onClick={onDelete}
-            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110"
-            style={{ color: 'rgb(var(--text-secondary))' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-              e.currentTarget.style.color = '#ef4444';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110 text-gray-400 hover:bg-red-500/15 hover:text-red-400"
             title="Delete workflow"
           >
             <Trash2 size={16} strokeWidth={2} />
           </button>
+          
+          {/* Inline Edit Confirmation Popover */}
+          {showEditConfirm && (
+            <div className="absolute top-full right-8 mt-2 w-56 z-50 animate-scale-in">
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2">
+                  <p className="text-white text-sm font-semibold flex items-center gap-2">
+                    <Edit3 size={14} />
+                    Edit Workflow?
+                  </p>
+                </div>
+                <div className="p-3">
+                  <p className="text-gray-400 text-xs mb-3">Open editor</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowEditConfirm(false)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowEditConfirm(false);
+                        onEdit();
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Edit3 size={12} />
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Inline Delete Confirmation Popover */}
+          {showDeleteConfirm && (
+            <div className="absolute top-full right-0 mt-2 w-64 z-50 animate-scale-in">
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2">
+                  <p className="text-white text-sm font-semibold flex items-center gap-2">
+                    <AlertTriangle size={14} />
+                    Delete Workflow?
+                  </p>
+                </div>
+                <div className="p-3">
+                  <p className="text-gray-400 text-xs mb-3">Permanently remove "{workflow.name}"</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        onDelete();
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Trash2 size={12} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </td>
     </tr>

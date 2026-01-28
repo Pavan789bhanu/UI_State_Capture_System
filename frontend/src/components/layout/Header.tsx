@@ -1,240 +1,225 @@
-import { Bell, Search, Sun, Moon, Monitor, Settings } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { 
+  Home, Workflow, Activity, FlaskConical, TrendingUp, 
+  Settings, User, LogOut, Menu, X, Bell, Sparkles
+} from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { useRipple } from '../../hooks/useRipple';
-import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationPanel from '../NotificationPanel';
+
+// Navigation item component with hover effect
+function NavItem({ 
+  to, 
+  icon: Icon, 
+  label, 
+  isActive 
+}: { 
+  to: string; 
+  icon: React.ElementType; 
+  label: string; 
+  isActive: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 group
+        ${isActive 
+          ? 'text-white bg-white/10' 
+          : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+    >
+      <Icon size={18} className={`transition-transform duration-300 group-hover:scale-110 
+        ${isActive ? 'text-indigo-400' : ''}`} />
+      <span>{label}</span>
+      {/* Animated underline */}
+      <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 
+        transition-all duration-300 ${isActive ? 'w-8' : 'w-0 group-hover:w-8'}`} />
+    </Link>
+  );
+}
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, setTheme, effectsEnabled, setEffectsEnabled } = useTheme();
+  const { logout } = useAuth();
   const { unreadCount } = useNotifications();
-  const [showSettings, setShowSettings] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const createRipple = useRipple();
-  const settingsRef = useRef<HTMLDivElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  const profileRef = useRef<HTMLDivElement>(null);
 
-  // Close settings when clicking outside
+  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setShowSettings(false);
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
       }
     }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    if (showSettings) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showSettings]);
+  const navItems = [
+    { to: '/dashboard', icon: Home, label: 'Home' },
+    { to: '/workflows', icon: Workflow, label: 'Workflows' },
+    { to: '/executions', icon: Activity, label: 'Executions' },
+    { to: '/playground', icon: FlaskConical, label: 'Playground' },
+    { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
+  ];
 
-  const themeIcons = {
-    light: Sun,
-    dark: Moon,
-    midnight: Monitor,
-  };
+  const isActiveRoute = (path: string) => location.pathname === path;
 
   return (
-    <header 
-      style={{ 
-        backgroundColor: 'rgb(var(--bg-secondary))', 
-        borderColor: 'rgb(var(--border-color))',
-        backdropFilter: 'blur(20px)'
-      }} 
-      className="h-16 border-b flex items-center justify-between px-6 sticky top-0 z-50 animate-slide-in-right"
-      role="banner"
-    >
-      {/* Brand Logo */}
-      <div className="flex items-center gap-3">
-        <div 
-          className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-          style={{ 
-            background: 'linear-gradient(135deg, rgb(var(--brand)) 0%, rgb(139 92 246) 100%)',
-            transform: 'rotate(-5deg)'
-          }}
-        >
-          <span className="text-white font-bold text-lg" style={{ transform: 'rotate(5deg)' }}>W</span>
-        </div>
-        <div>
-          <h1 className="text-lg font-bold gradient-text">WorkflowPro</h1>
-          <p className="text-xs" style={{ color: 'rgb(var(--text-secondary))' }}>Automation Platform</p>
-        </div>
-      </div>
-
-      {/* Enhanced Search */}
-      <div className="flex items-center flex-1 max-w-xl mx-8">
-        <div className="relative w-full group">
-          <Search 
-            style={{ color: 'rgb(var(--text-secondary))' }} 
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors group-focus-within:text-brand" 
-            strokeWidth={2.5} 
-            aria-hidden="true" 
-          />
-          <input
-            type="search"
-            placeholder="Search workflows, executions..."
-            aria-label="Search workflows and executions"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                const params = new URLSearchParams({ q: searchQuery });
-                if (location.pathname.includes('workflows')) {
-                  navigate(`/workflows?${params}`);
-                } else if (location.pathname.includes('executions')) {
-                  navigate(`/executions?${params}`);
-                } else {
-                  navigate(`/workflows?${params}`);
-                }
-              }
-            }}
-            style={{ 
-              backgroundColor: 'rgb(var(--bg-tertiary))', 
-              borderColor: 'rgb(var(--border-color))', 
-              color: 'rgb(var(--text-primary))'
-            }}
-            className="w-full pl-12 pr-4 py-3 text-sm border-2 rounded-xl focus:outline-none transition-all placeholder:text-gray-400 hover:border-brand/30"
-            onFocus={(e) => {
-              e.target.style.borderColor = 'rgb(var(--brand))';
-              e.target.style.boxShadow = '0 0 0 4px rgba(var(--brand), 0.1), 0 8px 16px rgba(var(--brand), 0.1)';
-              e.target.style.transform = 'translateY(-1px)';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = 'rgb(var(--border-color))';
-              e.target.style.boxShadow = 'none';
-              e.target.style.transform = 'translateY(0)';
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="relative" ref={settingsRef}>
-          <button 
-            className="p-2 rounded-lg transition-all ripple-container hover-glow"
-            style={{ color: 'rgb(var(--text-secondary))' }}
-            onClick={(e) => {
-              createRipple(e);
-              setShowSettings(!showSettings);
-            }}
-            aria-label="Open settings menu"
-            aria-expanded={showSettings}
-            aria-haspopup="true"
-          >
-            <Settings size={18} strokeWidth={2} aria-hidden="true" />
-          </button>
-          
-          {showSettings && (
-            <div 
-              style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }}
-              className="absolute right-0 mt-2 w-64 rounded-lg border shadow-lg p-4 animate-scale-in"
-            >
-              <div className="mb-4">
-                <label style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium block mb-2">Theme</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['light', 'dark', 'midnight'] as const).map((t) => {
-                    const Icon = themeIcons[t];
-                    return (
-                      <button
-                        key={t}
-                        onClick={(e) => {
-                          createRipple(e);
-                          setTheme(t);
-                        }}
-                        className={`p-2 rounded-lg border transition-all ripple-container ${
-                          theme === t ? 'ring-2' : ''
-                        }`}
-                        style={{
-                          backgroundColor: theme === t ? 'rgb(var(--brand) / 0.1)' : 'rgb(var(--bg-tertiary))',
-                          borderColor: theme === t ? 'rgb(var(--brand))' : 'rgb(var(--border-color))',
-                          color: theme === t ? 'rgb(var(--brand))' : 'rgb(var(--text-secondary))',
-                        }}
-                      >
-                        <Icon size={16} className="mx-auto" strokeWidth={2} />
-                        <span className="text-xs mt-1 block capitalize">{t}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t" style={{ borderColor: 'rgb(var(--border-color))' }}>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">Animations</span>
-                  <button
-                    onClick={(e) => {
-                      createRipple(e);
-                      setEffectsEnabled(!effectsEnabled);
-                    }}
-                    className={`relative w-11 h-6 rounded-full transition-colors ripple-container ${
-                      effectsEnabled ? 'bg-brand-600' : ''
-                    }`}
-                    style={{ backgroundColor: effectsEnabled ? 'rgb(var(--brand))' : 'rgb(var(--border-color))' }}
-                  >
-                    <span
-                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        effectsEnabled ? 'translate-x-5' : ''
-                      }`}
-                    />
-                  </button>
-                </label>
-              </div>
-
-              <div className="pt-4 border-t mt-4" style={{ borderColor: 'rgb(var(--border-color))' }}>
-                <button
-                  onClick={(e) => {
-                    createRipple(e);
-                    navigate('/settings');
-                    setShowSettings(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all ripple-container text-sm font-medium hover:bg-opacity-80"
-                  style={{
-                    color: 'rgb(var(--text-primary))',
-                    backgroundColor: 'rgb(var(--bg-tertiary))',
-                  }}
-                >
-                  <Settings size={16} strokeWidth={2} />
-                  <span>All Settings</span>
-                </button>
-              </div>
+    <header className="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8">
+        <nav className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 
+              flex items-center justify-center shadow-lg shadow-indigo-500/25
+              group-hover:shadow-indigo-500/40 group-hover:scale-105 transition-all duration-300">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-          )}
-        </div>
+            <span className="text-lg font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent hidden sm:block">
+              UI Capture
+            </span>
+          </Link>
 
-        <button 
-          className="relative p-2 rounded-lg transition-all ripple-container hover-glow"
-          style={{ color: 'rgb(var(--text-secondary))' }}
-          onClick={(e) => {
-            createRipple(e);
-            setShowNotifications(!showNotifications);
-          }}
-          aria-label="View notifications"
-        >
-          <Bell size={18} strokeWidth={2} aria-hidden="true" />
-          {unreadCount > 0 && (
-            <>
-              <span 
-                className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" 
-                style={{ 
-                  backgroundColor: '#ef4444',
-                  boxShadow: '0 0 0 2px rgb(var(--bg-secondary))'
-                }}
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center gap-1">
+            {navItems.map(item => (
+              <NavItem
+                key={item.to}
+                to={item.to}
+                icon={item.icon}
+                label={item.label}
+                isActive={isActiveRoute(item.to)}
               />
-              <span 
-                className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-semibold text-white rounded-full px-1" 
-                style={{ backgroundColor: '#ef4444' }}
+            ))}
+          </div>
+
+          {/* Right side actions */}
+          <div className="flex items-center gap-2">
+            {/* Settings */}
+            <Link
+              to="/settings"
+              className={`p-2 rounded-lg transition-all duration-300 
+                ${isActiveRoute('/settings') 
+                  ? 'text-white bg-white/10' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Settings size={20} />
+            </Link>
+
+            {/* Notifications */}
+            <button 
+              className="relative p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center 
+                  text-[10px] font-bold text-white rounded-full px-1 bg-gradient-to-r from-red-500 to-pink-500">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Profile Dropdown */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition-all duration-300"
               >
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            </>
-          )}
-        </button>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 
+                  flex items-center justify-center text-white font-semibold text-sm">
+                  P
+                </div>
+              </button>
+
+              {showProfileMenu && (
+                <div className="absolute top-full right-0 mt-2 w-56 rounded-xl border border-white/10 
+                  bg-[#12121a]/95 backdrop-blur-xl shadow-2xl p-2 animate-scale-in">
+                  <div className="px-3 py-2 mb-2">
+                    <p className="text-sm font-medium text-white">Pavan Kumar</p>
+                    <p className="text-xs text-gray-400">pavan@uicapture.ai</p>
+                  </div>
+                  <div className="border-t border-white/10 pt-2">
+                    <Link
+                      to="/profile"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 
+                        hover:text-white hover:bg-white/5 transition-all"
+                    >
+                      <User size={16} />
+                      Profile
+                    </Link>
+                    <Link
+                      to="/settings"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 
+                        hover:text-white hover:bg-white/5 transition-all"
+                    >
+                      <Settings size={16} />
+                      Settings
+                    </Link>
+                  </div>
+                  <div className="border-t border-white/10 pt-2 mt-2">
+                    <button
+                      onClick={() => {
+                        logout();
+                        navigate('/');
+                        setShowProfileMenu(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-red-400 
+                        hover:text-red-300 hover:bg-red-500/10 transition-all"
+                    >
+                      <LogOut size={16} />
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </nav>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden py-4 border-t border-white/10 animate-fade-in">
+            <div className="flex flex-col gap-1">
+              {navItems.map(item => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all
+                    ${isActiveRoute(item.to)
+                      ? 'text-white bg-white/10'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  <item.icon size={18} className={isActiveRoute(item.to) ? 'text-indigo-400' : ''} />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} />}
+      {/* Notification Panel */}
+      {showNotifications && (
+        <NotificationPanel onClose={() => setShowNotifications(false)} />
+      )}
     </header>
   );
 }

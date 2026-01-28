@@ -1,7 +1,7 @@
 import { Eye, CheckCircle2, XCircle, Clock, Trash2, Search, AlertTriangle, X, Play, FileText, Calendar, Timer, Filter, ExternalLink, RefreshCw, Loader2, LayoutGrid, List, Columns } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type Execution } from '../services/api';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -16,8 +16,6 @@ export default function ExecutionsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedExecution, setSelectedExecution] = useState<Execution | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [executionToDelete, setExecutionToDelete] = useState<Execution | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('executionViewMode') as ViewMode) || 'grid';
   });
@@ -53,8 +51,6 @@ export default function ExecutionsPage() {
         title: 'Execution Deleted',
         message: `Execution has been removed successfully.`,
       });
-      setShowDeleteDialog(false);
-      setExecutionToDelete(null);
     },
     onError: () => {
       addNotification({
@@ -164,16 +160,19 @@ export default function ExecutionsPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6 animate-fade-in-up">
+      <div className="mb-8 animate-fade-in-up">
         <div className="flex items-center justify-between">
           <div>
-            <h1 style={{ color: 'rgb(var(--text-primary))' }} className="text-2xl font-bold flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
-                <Play className="text-white" size={18} />
+            <h1 className="text-3xl font-bold text-white flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/30" 
+                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
+                <Play className="text-white" size={22} />
               </div>
-              Execution History
+              <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Execution History
+              </span>
             </h1>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mt-1 ml-13">
+            <p className="text-gray-400 text-base mt-2 ml-16">
               Track and monitor your workflow executions
             </p>
           </div>
@@ -328,10 +327,7 @@ export default function ExecutionsPage() {
                         setSelectedExecution(execution);
                         setShowReportModal(true);
                       }}
-                      onDelete={() => {
-                        setExecutionToDelete(execution);
-                        setShowDeleteDialog(true);
-                      }}
+                      onDelete={() => deleteMutation.mutate(execution.id)}
                     />
                   ))}
                 </div>
@@ -346,23 +342,20 @@ export default function ExecutionsPage() {
                         setSelectedExecution(execution);
                         setShowReportModal(true);
                       }}
-                      onDelete={() => {
-                        setExecutionToDelete(execution);
-                        setShowDeleteDialog(true);
-                      }}
+                      onDelete={() => deleteMutation.mutate(execution.id)}
                     />
                   ))}
                 </div>
               ) : (
-                <div className="card overflow-hidden">
+                <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
                   <table className="w-full">
-                    <thead style={{ borderColor: 'rgb(var(--border-color))' }} className="border-b">
+                    <thead className="border-b border-white/10 bg-white/5">
                       <tr>
-                        <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase">Workflow</th>
-                        <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase">Status</th>
-                        <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase hidden md:table-cell">Started</th>
-                        <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-left px-4 py-3 text-xs font-semibold uppercase hidden lg:table-cell">Duration</th>
-                        <th style={{ color: 'rgb(var(--text-secondary))' }} className="text-right px-4 py-3 text-xs font-semibold uppercase">Actions</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase text-gray-400">Workflow</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase text-gray-400">Status</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase hidden md:table-cell text-gray-400">Started</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase hidden lg:table-cell text-gray-400">Duration</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold uppercase text-gray-400">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -374,10 +367,7 @@ export default function ExecutionsPage() {
                             setSelectedExecution(execution);
                             setShowReportModal(true);
                           }}
-                          onDelete={() => {
-                            setExecutionToDelete(execution);
-                            setShowDeleteDialog(true);
-                          }}
+                          onDelete={() => deleteMutation.mutate(execution.id)}
                         />
                       ))}
                     </tbody>
@@ -399,88 +389,6 @@ export default function ExecutionsPage() {
           }}
         />
       )}
-
-      {/* Delete Confirmation Dialog */}
-      {showDeleteDialog && executionToDelete && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-          <div 
-            className="relative max-w-md w-full m-4 rounded-2xl overflow-hidden shadow-2xl animate-scale-in"
-            style={{ backgroundColor: 'rgb(var(--bg-primary))' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header with gradient */}
-            <div className="relative px-6 py-5 bg-gradient-to-r from-red-500 to-orange-500">
-              <div className="absolute inset-0 bg-black/10" />
-              <div className="relative flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <AlertTriangle className="w-6 h-6 text-white" strokeWidth={2} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Delete Execution</h2>
-                  <p className="text-sm text-white/80">This action cannot be undone</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Content */}
-            <div className="p-6">
-              <div 
-                className="p-4 rounded-xl mb-4"
-                style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}
-              >
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mb-2">
-                  Execution Details:
-                </p>
-                <p style={{ color: 'rgb(var(--text-primary))' }} className="font-semibold">
-                  {executionToDelete.workflow_name || 'Unknown Workflow'}
-                </p>
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mt-1">
-                  ID: {String(executionToDelete.id).slice(0, 8)}...
-                </p>
-              </div>
-              
-              <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm leading-relaxed">
-                All execution data, logs, screenshots, and reports will be permanently removed.
-              </p>
-            </div>
-            
-            {/* Actions */}
-            <div className="flex gap-3 p-6 pt-0">
-              <button
-                onClick={() => {
-                  setShowDeleteDialog(false);
-                  setExecutionToDelete(null);
-                }}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{ 
-                  backgroundColor: 'rgb(var(--bg-tertiary))',
-                  color: 'rgb(var(--text-primary))',
-                  border: '1px solid rgb(var(--border-color))'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteMutation.mutate(executionToDelete.id)}
-                disabled={deleteMutation.isPending}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium text-white transition-all duration-200 hover:scale-105 active:scale-95 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/25 disabled:opacity-50 disabled:hover:scale-100"
-              >
-                {deleteMutation.isPending ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin h-4 w-4" />
-                    Deleting...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <Trash2 size={16} strokeWidth={2} />
-                    Delete
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -498,6 +406,8 @@ function ExecutionCard({
   onDelete: () => void;
 }) {
   const [liveDuration, setLiveDuration] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
   
   // Update live duration for running executions
   useEffect(() => {
@@ -551,26 +461,25 @@ function ExecutionCard({
 
   return (
     <div 
-      className="card p-4 hover-glow transition-all duration-300 animate-scale-in"
+      className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 hover:bg-white/10 hover:border-indigo-500/30 transition-all duration-300 animate-scale-in"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 
-            style={{ color: 'rgb(var(--text-primary))' }} 
-            className="font-semibold text-sm truncate"
+            className="font-semibold text-base text-white truncate"
             title={execution.workflow_name || 'Unknown Workflow'}
           >
             {execution.workflow_name || 'Unknown Workflow'}
           </h3>
-          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mt-0.5">
+          <p className="text-xs text-gray-500 mt-1">
             ID: {String(execution.id).slice(0, 8)}
           </p>
         </div>
         <span 
           style={{ backgroundColor: config.bg, color: config.text }} 
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${config.pulse ? 'animate-pulse' : ''}`}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 ${config.pulse ? 'animate-pulse' : ''}`}
         >
           <StatusIcon size={12} strokeWidth={2} className={config.pulse ? 'animate-spin' : ''} />
           {config.label}
@@ -580,19 +489,19 @@ function ExecutionCard({
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <Clock size={14} style={{ color: 'rgb(var(--text-secondary))' }} />
+          <Clock size={14} className="text-gray-500" />
           <div>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">Started</p>
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+            <p className="text-xs text-gray-500">Started</p>
+            <p className="text-sm font-medium text-white">
               {execution.started_at ? formatTime(execution.started_at) : '--'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Timer size={14} style={{ color: 'rgb(var(--text-secondary))' }} />
+          <Timer size={14} className="text-gray-500" />
           <div>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">Duration</p>
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+            <p className="text-xs text-gray-500">Duration</p>
+            <p className="text-sm font-medium text-white">
               {execution.status === 'RUNNING' 
                 ? formatDuration(liveDuration) 
                 : execution.status === 'PENDING' 
@@ -604,37 +513,61 @@ function ExecutionCard({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-3" style={{ borderTop: '1px solid rgb(var(--border-color))' }}>
+      <div className="flex items-center gap-2 pt-4 border-t border-white/10 relative">
         <button
           onClick={onViewReport}
           disabled={!canViewReport}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          style={{ 
-            backgroundColor: canViewReport ? 'rgb(var(--brand))' : 'rgb(var(--bg-tertiary))',
-            color: canViewReport ? 'white' : 'rgb(var(--text-tertiary))',
-          }}
+          className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+            canViewReport 
+              ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-600' 
+              : 'bg-white/10 text-gray-500'
+          }`}
         >
           <Eye size={14} strokeWidth={2} />
           View Report
         </button>
         <button
-          onClick={onDelete}
-          className="p-2 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
-          style={{ 
-            backgroundColor: 'rgb(var(--bg-tertiary))',
-            color: 'rgb(var(--text-secondary))',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
-            e.currentTarget.style.color = '#ef4444';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(var(--bg-tertiary))';
-            e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-          }}
+          ref={deleteButtonRef}
+          onClick={() => setShowDeleteConfirm(true)}
+          className="p-2.5 rounded-xl bg-white/10 text-gray-400 hover:bg-red-500/15 hover:text-red-400 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <Trash2 size={14} strokeWidth={2} />
         </button>
+        
+        {/* Inline Delete Confirmation Popover */}
+        {showDeleteConfirm && (
+          <div className="absolute bottom-full right-0 mb-2 w-64 z-50 animate-scale-in">
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2">
+                <p className="text-white text-sm font-semibold flex items-center gap-2">
+                  <AlertTriangle size={14} />
+                  Delete Execution?
+                </p>
+              </div>
+              <div className="p-3">
+                <p className="text-gray-400 text-xs mb-3">This will permanently remove all data, logs, and screenshots.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      onDelete();
+                    }}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -653,6 +586,7 @@ function ExecutionListItem({
   onDelete: () => void;
 }) {
   const [liveDuration, setLiveDuration] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   useEffect(() => {
     if (execution.status === 'RUNNING' && execution.started_at) {
@@ -705,7 +639,7 @@ function ExecutionListItem({
 
   return (
     <div 
-      className="card p-4 hover-glow transition-all duration-300 animate-fade-in-up"
+      className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 hover:bg-white/10 hover:border-indigo-500/30 transition-all duration-300 animate-fade-in-up"
       style={{ animationDelay: `${index * 0.03}s` }}
     >
       <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -713,21 +647,20 @@ function ExecutionListItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
             <h3 
-              style={{ color: 'rgb(var(--text-primary))' }} 
-              className="font-semibold text-sm truncate"
+              className="font-semibold text-sm truncate text-white"
               title={execution.workflow_name || 'Unknown Workflow'}
             >
               {execution.workflow_name || 'Unknown Workflow'}
             </h3>
             <span 
               style={{ backgroundColor: config.bg, color: config.text }} 
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${config.pulse ? 'animate-pulse' : ''}`}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 ${config.pulse ? 'animate-pulse' : ''}`}
             >
               <StatusIcon size={12} strokeWidth={2} className={config.pulse ? 'animate-spin' : ''} />
               {config.label}
             </span>
           </div>
-          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">
+          <p className="text-xs text-gray-500">
             ID: {String(execution.id).slice(0, 8)}
           </p>
         </div>
@@ -735,14 +668,14 @@ function ExecutionListItem({
         {/* Stats */}
         <div className="flex items-center gap-6 shrink-0">
           <div className="text-center">
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mb-0.5">Started</p>
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium whitespace-nowrap">
+            <p className="text-xs mb-0.5 text-gray-500">Started</p>
+            <p className="text-sm font-medium whitespace-nowrap text-white">
               {execution.started_at ? formatTime(execution.started_at) : '--'}
             </p>
           </div>
           <div className="text-center">
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mb-0.5">Duration</p>
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+            <p className="text-xs mb-0.5 text-gray-500">Duration</p>
+            <p className="text-sm font-medium text-white">
               {execution.status === 'RUNNING' 
                 ? formatDuration(liveDuration) 
                 : execution.status === 'PENDING' 
@@ -753,37 +686,56 @@ function ExecutionListItem({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 relative">
           <button
             onClick={onViewReport}
             disabled={!canViewReport}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            style={{ 
-              backgroundColor: canViewReport ? 'rgb(var(--brand))' : 'rgb(var(--bg-tertiary))',
-              color: canViewReport ? 'white' : 'rgb(var(--text-tertiary))',
-            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/25 disabled:bg-gray-700 disabled:text-gray-500 disabled:shadow-none"
           >
             <Eye size={14} strokeWidth={2} />
             View Report
           </button>
           <button
-            onClick={onDelete}
-            className="p-2 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{ 
-              backgroundColor: 'rgb(var(--bg-tertiary))',
-              color: 'rgb(var(--text-secondary))',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
-              e.currentTarget.style.color = '#ef4444';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgb(var(--bg-tertiary))';
-              e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-2 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 bg-white/5 text-gray-400 hover:bg-red-500/15 hover:text-red-400 border border-white/10"
           >
             <Trash2 size={14} strokeWidth={2} />
           </button>
+          
+          {/* Inline Delete Confirmation Popover */}
+          {showDeleteConfirm && (
+            <div className="absolute top-full right-0 mt-2 w-64 z-50 animate-scale-in">
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2">
+                  <p className="text-white text-sm font-semibold flex items-center gap-2">
+                    <AlertTriangle size={14} />
+                    Delete Execution?
+                  </p>
+                </div>
+                <div className="p-3">
+                  <p className="text-gray-400 text-xs mb-3">This will permanently remove all data, logs, and screenshots.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        onDelete();
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Trash2 size={12} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -801,6 +753,7 @@ function ExecutionTableRow({
   onDelete: () => void;
 }) {
   const [liveDuration, setLiveDuration] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   useEffect(() => {
     if (execution.status === 'RUNNING' && execution.started_at) {
@@ -853,36 +806,35 @@ function ExecutionTableRow({
 
   return (
     <tr 
-      style={{ borderColor: 'rgb(var(--border-color))' }} 
-      className="border-b last:border-b-0 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+      className="border-b border-white/10 last:border-b-0 transition-colors hover:bg-white/5"
     >
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}>
-            <Play size={14} style={{ color: 'rgb(var(--brand))' }} />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-white/10">
+            <Play size={14} className="text-indigo-400" />
           </div>
           <div className="min-w-0">
-            <p style={{ color: 'rgb(var(--text-primary))' }} className="font-medium text-sm truncate">{execution.workflow_name || 'Unknown Workflow'}</p>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs truncate">ID: {String(execution.id).slice(0, 8)}</p>
+            <p className="font-medium text-sm truncate text-white">{execution.workflow_name || 'Unknown Workflow'}</p>
+            <p className="text-xs truncate text-gray-500">ID: {String(execution.id).slice(0, 8)}</p>
           </div>
         </div>
       </td>
       <td className="px-4 py-3">
         <span 
           style={{ backgroundColor: config.bg, color: config.text }} 
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${config.pulse ? 'animate-pulse' : ''}`}
+          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${config.pulse ? 'animate-pulse' : ''}`}
         >
           <StatusIcon size={12} strokeWidth={2} className={config.pulse ? 'animate-spin' : ''} />
           {config.label}
         </span>
       </td>
       <td className="px-4 py-3 hidden md:table-cell">
-        <span style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">
+        <span className="text-sm text-gray-400">
           {execution.started_at ? formatTime(execution.started_at) : '--'}
         </span>
       </td>
       <td className="px-4 py-3 hidden lg:table-cell">
-        <span style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+        <span className="text-sm font-medium text-white">
           {execution.status === 'RUNNING' 
             ? formatDuration(liveDuration) 
             : execution.status === 'PENDING' 
@@ -891,36 +843,57 @@ function ExecutionTableRow({
         </span>
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1 relative">
           <button 
             onClick={onViewReport}
             disabled={!canViewReport}
-            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            style={{ color: canViewReport ? 'rgb(var(--brand))' : 'rgb(var(--text-tertiary))' }}
-            onMouseEnter={(e) => {
-              if (canViewReport) e.currentTarget.style.backgroundColor = 'rgba(var(--brand), 0.1)';
-            }}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-indigo-400 hover:bg-indigo-500/15"
             title="View Report"
           >
             <Eye size={16} strokeWidth={2} />
           </button>
           <button 
-            onClick={onDelete}
-            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110"
-            style={{ color: 'rgb(var(--text-secondary))' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-              e.currentTarget.style.color = '#ef4444';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgb(var(--text-secondary))';
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-1.5 rounded-lg transition-all duration-200 hover:scale-110 text-gray-400 hover:bg-red-500/15 hover:text-red-400"
             title="Delete Execution"
           >
             <Trash2 size={16} strokeWidth={2} />
           </button>
+          
+          {/* Inline Delete Confirmation Popover */}
+          {showDeleteConfirm && (
+            <div className="absolute top-full right-0 mt-2 w-64 z-50 animate-scale-in">
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2">
+                  <p className="text-white text-sm font-semibold flex items-center gap-2">
+                    <AlertTriangle size={14} />
+                    Delete Execution?
+                  </p>
+                </div>
+                <div className="p-3">
+                  <p className="text-gray-400 text-xs mb-3">This will permanently remove all data.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        onDelete();
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Trash2 size={12} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </td>
     </tr>
@@ -963,14 +936,13 @@ function ReportViewerModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 animate-fade-in">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] animate-fade-in">
       <div 
-        className={`relative rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col transition-all duration-300 ${
+        className={`relative rounded-2xl overflow-hidden shadow-2xl animate-scale-in flex flex-col transition-all duration-300 bg-[#0a0a0f] border border-white/10 ${
           isFullscreen 
             ? 'w-[calc(100vw-32px)] h-[calc(100vh-32px)] m-4' 
             : 'w-full max-w-5xl h-[80vh] m-4'
         }`}
-        style={{ backgroundColor: 'rgb(var(--bg-primary))' }}
       >
         {/* Header */}
         <div className="relative px-6 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 shrink-0">

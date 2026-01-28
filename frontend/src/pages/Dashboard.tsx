@@ -1,4 +1,7 @@
-import { Workflow, Activity, CheckCircle2, Clock, ArrowUpRight, ArrowDownRight, Play, Plus, TrendingUp } from 'lucide-react';
+import { 
+  Workflow, Activity, ArrowRight, Plus, Zap, BarChart3, 
+  Sparkles, Settings, Clock, CheckCircle2, XCircle, Loader2
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/api';
 import { useEffect } from 'react';
@@ -8,53 +11,28 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  
-  useEffect(() => {
-    console.log('[Dashboard] Auth state:', { isAuthenticated, authLoading });
-  }, [isAuthenticated, authLoading]);
-  
-  const { data: stats, refetch } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      console.log('[Dashboard] Fetching analytics...');
-      const analytics = await apiClient.getAnalyticsOverview();
-      return {
-        totalWorkflows: analytics.active_workflows,
-        executions: analytics.total_executions,
-        successRate: analytics.success_rate,
-        avgDuration: analytics.average_duration,
-      };
-    },
-    enabled: isAuthenticated && !authLoading,
-  });
 
-  const { data: executions, refetch: refetchExecutions } = useQuery({
+  const { data: executions, refetch: refetchExecutions, refetch } = useQuery({
     queryKey: ['recent-executions'],
     queryFn: async () => {
-      console.log('[Dashboard] Fetching executions at:', new Date().toLocaleTimeString());
       const result = await apiClient.getExecutions();
-      console.log('[Dashboard] Executions received:', result.executions.map((e: any) => ({ id: e.id, name: e.workflow_name, status: e.status })));
       return result.executions.slice(0, 5);
     },
     enabled: isAuthenticated && !authLoading,
-    refetchInterval: 2000, // Poll every 2 seconds for real-time status updates
-    staleTime: 0, // Always consider data stale to ensure fresh data
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    refetchInterval: 2000,
+    staleTime: 0,
   });
 
   const { data: workflows } = useQuery({
     queryKey: ['recent-workflows'],
     queryFn: async () => {
-      console.log('[Dashboard] Fetching workflows...');
       const result = await apiClient.getWorkflows();
-      // Extract workflows array and sort by updatedAt descending, take top 5
       return result.workflows
         .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
         .slice(0, 5);
     },
     enabled: isAuthenticated && !authLoading,
-    refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time updates
+    refetchInterval: 5000,
   });
 
   useEffect(() => {
@@ -62,11 +40,9 @@ export default function Dashboard() {
       refetch();
       refetchExecutions();
     };
-
     apiClient.on('execution_created', handleUpdate);
     apiClient.on('execution_completed', handleUpdate);
     apiClient.on('workflow_created', handleUpdate);
-
     return () => {
       apiClient.off('execution_created', handleUpdate);
       apiClient.off('execution_completed', handleUpdate);
@@ -75,401 +51,359 @@ export default function Dashboard() {
   }, [refetch, refetchExecutions]);
 
   return (
-    <div className="min-h-full">
-      {/* Hero Section with Gradient Background */}
-      <div 
-        className="relative overflow-hidden mb-8"
-        style={{
-          background: 'linear-gradient(135deg, rgba(var(--brand), 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
-          borderRadius: '0 0 32px 32px'
-        }}
-      >
-        {/* Animated Background Shapes */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div 
-            className="absolute w-96 h-96 rounded-full opacity-20 animate-pulse"
-            style={{
-              background: 'radial-gradient(circle, rgb(var(--brand)) 0%, transparent 70%)',
-              top: '-10%',
-              right: '10%',
-              animationDuration: '4s'
-            }}
-          />
-          <div 
-            className="absolute w-64 h-64 rounded-full opacity-20 animate-pulse"
-            style={{
-              background: 'radial-gradient(circle, rgb(139 92 246) 0%, transparent 70%)',
-              bottom: '-5%',
-              left: '5%',
-              animationDuration: '6s',
-              animationDelay: '1s'
-            }}
-          />
-        </div>
-
-        <div className="relative p-8 max-w-7xl mx-auto">
-          <div className="animate-fade-in-up">
-            <h1 
-              className="text-5xl font-bold mb-3"
-              style={{ 
-                background: 'linear-gradient(135deg, rgb(var(--text-primary)) 0%, rgb(var(--brand)) 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}
-            >
-              Welcome back, Pavan 👋
-            </h1>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-lg mb-6">
-              Here's what's happening with your workflows today
-            </p>
+    <div className="min-h-full py-8 px-4 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Hero Section */}
+        <div className="mb-10">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 
+                  flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                  <Sparkles className="text-white" size={28} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Welcome back</p>
+                  <h1 className="text-2xl lg:text-3xl font-bold text-white">
+                    Pavan Kumar
+                  </h1>
+                </div>
+              </div>
+              <p className="text-gray-400 max-w-xl">
+                Your automation platform is running smoothly. Here's what's happening with your workflows today.
+              </p>
+            </div>
             
             {/* Quick Actions */}
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button 
                 onClick={() => {
                   navigate('/workflows');
                   window.dispatchEvent(new CustomEvent('create-workflow'));
                 }}
-                className="btn-primary flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, rgb(var(--brand)) 0%, rgb(139 92 246) 100%)',
-                  padding: '12px 24px',
-                  borderRadius: '12px'
-                }}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 
+                  text-white font-semibold hover:shadow-lg hover:shadow-indigo-500/25 hover:scale-105 
+                  transition-all duration-300"
               >
-                <Plus size={20} strokeWidth={2.5} />
-                <span className="font-semibold">Create Workflow</span>
+                <Plus size={18} />
+                New Workflow
               </button>
               <button 
                 onClick={() => navigate('/playground')}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all hover:scale-105"
-                style={{
-                  backgroundColor: 'rgb(var(--bg-secondary))',
-                  border: '2px solid rgb(var(--border-color))',
-                  color: 'rgb(var(--text-primary))'
-                }}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl border border-white/10 
+                  text-white font-semibold hover:bg-white/5 hover:border-white/20 transition-all duration-300"
               >
-                <Play size={18} strokeWidth={2.5} />
-                <span>Playground</span>
+                <Zap size={18} />
+                Playground
               </button>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="px-6 max-w-7xl mx-auto">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            icon={Workflow}
-            iconColor="#0ea5e9"
-            iconBg="rgba(14, 165, 233, 0.1)"
-            label="Active Workflows"
-            value={stats?.totalWorkflows || 0}
-            trend={{ value: 12, isPositive: true }}
+        {/* Quick Access Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <QuickAccessCard
+            icon={Zap}
+            title="AI Playground"
+            description="Build workflows with natural language"
+            gradient="from-amber-500 to-orange-500"
+            onClick={() => navigate('/playground')}
           />
-          <StatCard
-            icon={Activity}
-            iconColor="#8b5cf6"
-            iconBg="rgba(139, 92, 246, 0.1)"
-            label="Total Executions"
-            value={stats?.executions || 0}
-            trend={{ value: 23, isPositive: true }}
+          <QuickAccessCard
+            icon={BarChart3}
+            title="Analytics"
+            description="Track performance and insights"
+            gradient="from-emerald-500 to-teal-500"
+            onClick={() => navigate('/analytics')}
           />
-          <StatCard
-            icon={CheckCircle2}
-            iconColor="#10b981"
-            iconBg="rgba(16, 185, 129, 0.1)"
-            label="Success Rate"
-            value={`${Math.round(stats?.successRate || 0)}%`}
-            trend={{ value: 5, isPositive: true }}
-          />
-          <StatCard
-            icon={Clock}
-            iconColor="#f59e0b"
-            iconBg="rgba(245, 158, 11, 0.1)"
-            label="Avg Duration"
-            value={`${Math.round(stats?.avgDuration || 0)}s`}
-            trend={{ value: 8, isPositive: false }}
+          <QuickAccessCard
+            icon={Settings}
+            title="Settings"
+            description="Configure your workspace"
+            gradient="from-blue-500 to-indigo-500"
+            onClick={() => navigate('/settings')}
           />
         </div>
 
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
           {/* Recent Workflows */}
-          <div className="card stat-card">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 style={{ color: 'rgb(var(--text-primary))' }} className="text-lg font-semibold">Recent Workflows</h2>
+          <div className="lg:col-span-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 
+                    flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <Workflow className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Recent Workflows</h2>
+                    <p className="text-sm text-gray-400">Your latest automations</p>
+                  </div>
+                </div>
                 <Link 
                   to="/workflows"
-                  className="text-sm font-medium cursor-pointer"
-                  style={{ 
-                    color: 'rgb(var(--brand))', 
-                    textDecoration: 'none',
-                    padding: '8px 12px',
-                    margin: '-8px -12px',
-                    display: 'inline-block',
-                    userSelect: 'none'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                  className="flex items-center gap-1 text-sm font-medium text-indigo-400 
+                    hover:text-indigo-300 hover:gap-2 transition-all"
                 >
-                  View all
+                  View all <ArrowRight size={16} />
                 </Link>
               </div>
-              <div className="space-y-3">
+              
+              <div className="space-y-2">
                 {workflows && workflows.length > 0 ? (
-                  workflows.map((workflow: any) => (
-                    <WorkflowItem key={workflow.id} workflow={workflow} />
+                  workflows.map((workflow: any, index: number) => (
+                    <WorkflowRow key={workflow.id} workflow={workflow} index={index} />
                   ))
                 ) : (
-                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm py-4 text-center">
-                    No workflows yet
-                  </p>
+                  <EmptyState 
+                    icon={Workflow}
+                    title="No workflows yet"
+                    description="Create your first workflow to get started"
+                    action={
+                      <button 
+                        onClick={() => {
+                          navigate('/workflows');
+                          window.dispatchEvent(new CustomEvent('create-workflow'));
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 
+                          text-white font-medium hover:shadow-lg hover:shadow-indigo-500/25 transition-all"
+                      >
+                        <Plus size={16} /> Create Workflow
+                      </button>
+                    }
+                  />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Recent Executions */}
-          <div className="card stat-card">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 style={{ color: 'rgb(var(--text-primary))' }} className="text-lg font-semibold">Recent Executions</h2>
-                <Link 
-                  to="/executions"
-                  className="text-sm font-medium cursor-pointer"
-                  style={{ 
-                    color: 'rgb(var(--brand))', 
-                    textDecoration: 'none',
-                    padding: '8px 12px',
-                    margin: '-8px -12px',
-                    display: 'inline-block',
-                    userSelect: 'none'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                >
-                  View all
-                </Link>
+          {/* Activity Feed */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 
+                  flex items-center justify-center shadow-lg shadow-purple-500/20">
+                  <Activity className="text-white" size={20} />
+                </div>
+                <h2 className="text-lg font-semibold text-white">Activity</h2>
               </div>
-              <div className="space-y-3">
-                {executions && executions.length > 0 ? (
-                  executions.map((execution: any) => (
-                    <ExecutionItem key={execution.id} execution={execution} />
-                  ))
-                ) : (
-                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm py-4 text-center">
-                    No recent executions
-                  </p>
-                )}
-              </div>
+              <Link 
+                to="/executions"
+                className="flex items-center gap-1 text-sm font-medium text-indigo-400 
+                  hover:text-indigo-300 hover:gap-2 transition-all"
+              >
+                View all <ArrowRight size={16} />
+              </Link>
             </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="card stat-card">
-            <div className="p-6">
-              <h2 style={{ color: 'rgb(var(--text-primary))' }} className="text-lg font-semibold mb-4">Quick Actions</h2>
-              <div className="space-y-3">
-                <ActionButton
-                  icon={Plus}
-                  label="Create Workflow"
-                  description="Build a new automation"
-                  color="rgb(var(--brand))"
-                  onClick={() => {
-                    navigate('/workflows');
-                    window.dispatchEvent(new CustomEvent('create-workflow'));
-                  }}
-                />
-                <ActionButton
-                  icon={Play}
-                  label="Try Playground"
-                  description="Test workflows instantly"
-                  color="#8b5cf6"
-                  onClick={() => navigate('/playground')}
-                />
-                <ActionButton
-                  icon={TrendingUp}
-                  label="View Analytics"
-                  description="Track performance metrics"
-                  color="#10b981"
-                  onClick={() => navigate('/analytics')}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface StatCardProps {
-  icon: React.ElementType;
-  iconColor: string;
-  iconBg: string;
-  label: string;
-  value: string | number;
-  trend?: { value: number; isPositive: boolean };
-}
-
-function StatCard({ icon: Icon, iconColor, iconBg, label, value, trend }: StatCardProps) {
-  return (
-    <div className="card stat-card hover:scale-105 transition-transform duration-300">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div 
-            className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md"
-            style={{ backgroundColor: iconBg }}
-          >
-            <Icon style={{ color: iconColor }} size={24} strokeWidth={2.5} />
-          </div>
-          {trend && (
-            <div className="flex items-center gap-1">
-              {trend.isPositive ? (
-                <ArrowUpRight style={{ color: '#10b981' }} size={16} strokeWidth={2.5} />
+            
+            <div className="space-y-3">
+              {executions && executions.length > 0 ? (
+                executions.map((execution: any) => (
+                  <ActivityItem key={execution.id} execution={execution} />
+                ))
               ) : (
-                <ArrowDownRight style={{ color: '#ef4444' }} size={16} strokeWidth={2.5} />
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
+                    <Activity className="text-purple-400" size={20} />
+                  </div>
+                  <p className="text-sm text-gray-400">No recent activity</p>
+                </div>
               )}
-              <span style={{ color: trend.isPositive ? '#10b981' : '#ef4444' }} className="text-sm font-semibold">
-                {trend.value}%
-              </span>
             </div>
-          )}
-        </div>
-        <div>
-          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm font-medium mb-1">{label}</p>
-          <p style={{ color: 'rgb(var(--text-primary))' }} className="text-3xl font-bold">{value}</p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-interface ExecutionItemProps {
+// ============================================
+// WORKFLOW ROW COMPONENT
+// ============================================
+interface WorkflowRowProps {
+  workflow: {
+    id: string;
+    name: string;
+    created_at: string;
+    updated_at: string;
+    execution_count?: number;
+  };
+  index: number;
+}
+
+function WorkflowRow({ workflow, index }: WorkflowRowProps) {
+  const navigate = useNavigate();
+  
+  const getTimeAgo = (date: string) => {
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+    
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) {
+      const mins = Math.floor(seconds / 60);
+      return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
+    }
+    if (seconds < 86400) {
+      const hours = Math.floor(seconds / 3600);
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+    if (seconds < 604800) {
+      const days = Math.floor(seconds / 86400);
+      return `${days} day${days !== 1 ? 's' : ''} ago`;
+    }
+    if (seconds < 2592000) {
+      const weeks = Math.floor(seconds / 604800);
+      return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+    }
+    const months = Math.floor(seconds / 2592000);
+    return `${months} month${months !== 1 ? 's' : ''} ago`;
+  };
+
+  return (
+    <div
+      onClick={() => navigate('/workflows')}
+      className="flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all 
+        hover:bg-white/5 group"
+      style={{ animationDelay: (index * 0.05) + 's' }}
+    >
+      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+        <Workflow className="text-indigo-400" size={18} />
+      </div>
+      
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-white truncate">{workflow.name}</p>
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <Clock size={12} />
+          Created {getTimeAgo(workflow.created_at)}
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-4">
+        {workflow.execution_count !== undefined && (
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-medium text-white">{workflow.execution_count}</p>
+            <p className="text-xs text-gray-400">runs</p>
+          </div>
+        )}
+        <ArrowRight size={16} className="text-gray-500 opacity-0 group-hover:opacity-100 
+          group-hover:translate-x-1 transition-all" />
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// ACTIVITY ITEM COMPONENT
+// ============================================
+interface ActivityItemProps {
   execution: {
     id: string;
     workflow_name: string;
     status: string;
+    started_at?: string;
   };
 }
 
-interface WorkflowItemProps {
-  workflow: {
-    id: string;
-    name: string;
-    app_name: string;
-    updated_at: string;
-  };
-}
-
-function WorkflowItem({ workflow }: WorkflowItemProps) {
+function ActivityItem({ execution }: ActivityItemProps) {
   const navigate = useNavigate();
-  const timeSince = (date: string) => {
+  
+  const statusConfig: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
+    SUCCESS: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Completed' },
+    COMPLETED: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Completed' },
+    RUNNING: { icon: Loader2, color: 'text-blue-400', bg: 'bg-blue-500/10', label: 'Running' },
+    PENDING: { icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Pending' },
+    FAILED: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10', label: 'Failed' },
+    STOPPED: { icon: XCircle, color: 'text-gray-400', bg: 'bg-gray-500/10', label: 'Stopped' },
+  };
+  
+  const config = statusConfig[execution.status] || statusConfig.PENDING;
+  const StatusIcon = config.icon;
+  
+  const timeSince = (date?: string) => {
+    if (!date) return 'Just now';
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
     if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
+    if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+    if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+    return Math.floor(seconds / 86400) + 'd ago';
   };
 
   return (
-    <button
-      onClick={() => navigate(`/workflows/${workflow.id}`)}
-      className="w-full flex items-center justify-between p-3 rounded-lg transition-all hover:scale-102 text-left"
-      style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}
+    <div 
+      onClick={() => navigate('/executions')}
+      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-white/5"
     >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div 
-          className="w-8 h-8 rounded-lg flex items-center justify-center shadow-sm"
-          style={{ backgroundColor: 'rgba(14, 165, 233, 0.1)' }}
-        >
-          <Workflow style={{ color: '#0ea5e9' }} size={16} strokeWidth={2.5} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium truncate">
-            {workflow.name}
-          </p>
-          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">
-            {timeSince(workflow.updated_at)}
-          </p>
-        </div>
+      <div className={`w-8 h-8 rounded-full ${config.bg} flex items-center justify-center`}>
+        <StatusIcon size={16} className={`${config.color} ${execution.status === 'RUNNING' ? 'animate-spin' : ''}`} />
       </div>
-      <ArrowUpRight style={{ color: 'rgb(var(--text-secondary))' }} size={14} />
-    </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-white truncate">{execution.workflow_name}</p>
+        <p className="text-xs text-gray-400">{timeSince(execution.started_at)}</p>
+      </div>
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.color}`}>
+        {config.label}
+      </span>
+    </div>
   );
 }
 
-function ExecutionItem({ execution }: ExecutionItemProps) {
-  const navigate = useNavigate();
-  const statusConfig = {
-    SUCCESS: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', dot: '#22c55e', label: 'Success' },
-    COMPLETED: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', dot: '#22c55e', label: 'Success' },
-    RUNNING: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', dot: '#3b82f6', label: 'Running' },
-    PENDING: { bg: 'rgba(234, 179, 8, 0.15)', text: '#eab308', dot: '#eab308', label: 'Pending' },
-    FAILED: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444', dot: '#ef4444', label: 'Failed' },
-    STOPPED: { bg: 'rgba(148, 163, 184, 0.15)', text: '#94a3b8', dot: '#94a3b8', label: 'Stopped' },
-    CANCELLED: { bg: 'rgba(148, 163, 184, 0.15)', text: '#94a3b8', dot: '#94a3b8', label: 'Cancelled' },
-  };
-
-  const status = statusConfig[execution.status as keyof typeof statusConfig] || statusConfig.PENDING;
-
-  return (
-    <button
-      onClick={() => navigate(`/executions/${execution.id}`)}
-      className="w-full flex items-center justify-between p-3 rounded-lg transition-all hover:scale-102 text-left"
-      style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}
-    >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div 
-          className={`w-2 h-2 rounded-full ${execution.status === 'RUNNING' || execution.status === 'PENDING' ? 'animate-pulse' : ''}`}
-          style={{ backgroundColor: status.dot }}
-        />
-        <div className="flex-1 min-w-0">
-          <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium truncate">
-            {execution.workflow_name}
-          </p>
-        </div>
-      </div>
-      <div 
-        className="px-3 py-1 rounded-full text-xs font-semibold"
-        style={{ backgroundColor: status.bg, color: status.text }}
-      >
-        {status.label}
-      </div>
-    </button>
-  );
-}
-
-interface ActionButtonProps {
+// ============================================
+// QUICK ACCESS CARD
+// ============================================
+interface QuickAccessCardProps {
   icon: React.ElementType;
-  label: string;
+  title: string;
   description: string;
-  color: string;
+  gradient: string;
   onClick: () => void;
 }
 
-function ActionButton({ icon: Icon, label, description, color, onClick }: ActionButtonProps) {
+function QuickAccessCard({ icon: Icon, title, description, gradient, onClick }: QuickAccessCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-4 p-4 rounded-xl transition-all hover:scale-102 text-left group"
-      style={{ backgroundColor: 'rgb(var(--bg-tertiary))', border: '2px solid rgb(var(--border-color))' }}
+      className="relative group p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm 
+        text-left transition-all duration-300 hover:bg-white/10 hover:border-indigo-500/50 
+        hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10"
     >
-      <div 
-        className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform"
-        style={{ backgroundColor: `${color}20` }}
-      >
-        <Icon style={{ color }} size={20} strokeWidth={2.5} />
+      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} 
+        flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
+        <Icon className="text-white" size={22} />
       </div>
-      <div className="flex-1 min-w-0">
-        <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-semibold">{label}</p>
-        <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">{description}</p>
+      <h3 className="text-lg font-semibold text-white mb-1 group-hover:text-indigo-300 transition-colors">
+        {title}
+      </h3>
+      <p className="text-sm text-gray-400 mb-4">{description}</p>
+      <div className="flex items-center gap-1 text-sm font-medium text-indigo-400 
+        group-hover:gap-2 group-hover:text-indigo-300 transition-all">
+        Get started <ArrowRight size={16} />
       </div>
-      <ArrowUpRight style={{ color: 'rgb(var(--text-secondary))' }} size={16} className="group-hover:translate-x-1 transition-transform" />
     </button>
+  );
+}
+
+// ============================================
+// EMPTY STATE
+// ============================================
+interface EmptyStateProps {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}
+
+function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
+  return (
+    <div className="text-center py-12">
+      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 
+        flex items-center justify-center mx-auto mb-4">
+        <Icon className="text-gray-400" size={28} />
+      </div>
+      <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
+      <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto">{description}</p>
+      {action}
+    </div>
   );
 }

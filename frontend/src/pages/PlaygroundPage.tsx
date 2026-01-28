@@ -596,18 +596,40 @@ export default function PlaygroundPage() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden relative bg-[#0a0a0f]">
+      {/* Animated background with mesh gradient - same as landing page */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/50 via-purple-950/30 to-[#0a0a0f]" />
+        
+        {/* Mesh gradient overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))]" />
+        
+        {/* Animated orbs */}
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[150px] animate-pulse" />
+        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px] animate-pulse" 
+          style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-1/4 left-1/3 w-[350px] h-[350px] bg-blue-500/8 rounded-full blur-[100px] animate-pulse" 
+          style={{ animationDelay: '2s' }} />
+        
+        {/* Subtle dot pattern */}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBtLTEgMGExIDEgMCAxIDAgMiAwIDEgMSAwIDEgMCAtMiAwIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDMpIi8+PC9nPjwvc3ZnPg==')] opacity-40" />
+      </div>
+
       {/* Header */}
-      <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="border-b px-6 py-4 shrink-0">
+      <div className="relative z-30 border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-xl px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 style={{ color: 'rgb(var(--text-primary))' }} className="text-2xl font-bold flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, rgb(var(--brand)) 0%, rgb(139 92 246) 100%)' }}>
-                <Sparkles className="text-white" size={20} />
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              <span className="w-11 h-11 rounded-xl flex items-center justify-center shadow-xl shadow-indigo-500/30" 
+                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
+                <Sparkles className="text-white" size={22} />
               </span>
-              Workflow Playground
+              <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Workflow Playground
+              </span>
             </h1>
-            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mt-1 ml-13">
+            <p className="text-gray-400 text-sm mt-1.5 ml-14">
               Build, test, and debug automation workflows in real-time
               {pageState && ` • ${pageState.title || pageState.url}`}
             </p>
@@ -615,15 +637,54 @@ export default function PlaygroundPage() {
           <div className="flex items-center gap-3">
             {/* Clear All button - appears when there are steps */}
             {steps.length > 0 && (
-              <button
-                onClick={() => setShowClearDialog(true)}
-                disabled={isRunning}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-orange-600 hover:bg-orange-50 border border-orange-200 hover:border-orange-300"
-                title="Clear all steps and reset playground"
-              >
-                <Eraser size={18} />
-                Clear
-              </button>
+              <div className="relative z-40">
+                <button
+                  onClick={() => setShowClearDialog(true)}
+                  disabled={isRunning}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-orange-400 hover:bg-orange-500/10 border border-orange-500/30 hover:border-orange-500/50"
+                  title="Clear all steps and reset playground"
+                >
+                  <Eraser size={18} />
+                  Clear
+                </button>
+                
+                {/* Inline Clear Confirmation Popover */}
+                {showClearDialog && (
+                  <div className="absolute top-full right-0 mt-2 w-72 z-[100] animate-scale-in">
+                    <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                      <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 py-2">
+                        <p className="text-white text-sm font-semibold flex items-center gap-2">
+                          <Eraser size={14} />
+                          Clear Workspace?
+                        </p>
+                      </div>
+                      <div className="p-3">
+                        <p className="text-gray-400 text-xs mb-2">
+                          You're about to clear {steps.length} workflow step{steps.length !== 1 ? 's' : ''}
+                        </p>
+                        <p className="text-gray-500 text-xs mb-3">
+                          All steps, AI input, and execution history will be removed.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setShowClearDialog(false)}
+                            className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleClearAll}
+                            className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Eraser size={12} />
+                            Clear All
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             
             {hasModifications && originalGeneratedSteps.length > 0 && (
@@ -676,7 +737,7 @@ export default function PlaygroundPage() {
               </button>
             )}
             {isAutoSaving && (
-              <div className="flex items-center gap-2 text-sm" style={{ color: 'rgb(var(--text-secondary))' }}>
+              <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Loader size={16} className="animate-spin" />
                 Saving...
               </div>
@@ -685,24 +746,24 @@ export default function PlaygroundPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Workflow Builder */}
-        <div style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))' }} className="w-1/2 border-r flex flex-col">
+      {/* Main Content - Full Page Layout */}
+      <div className="relative z-10 flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 80px)' }}>
+        {/* Left Panel - Workflow Builder (50% width - increased) */}
+        <div className="w-1/2 border-r border-white/10 flex flex-col bg-[#0a0a0f]/80 backdrop-blur-xl">
           {/* AI Input */}
-          <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="p-6 border-b">
-            <div style={{ background: 'linear-gradient(135deg, rgb(59 130 246 / 0.1) 0%, rgb(139 92 246 / 0.1) 100%)', borderColor: 'rgb(var(--border-color))' }} className="rounded-xl p-4 border">
+          <div className="p-5 border-b border-white/10 bg-white/5 flex-shrink-0">
+            <div className="rounded-xl p-4 border border-white/10 bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-500 rounded-lg text-white shadow-sm">
-                    <Sparkles size={16} />
+                  <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg shadow-indigo-500/25">
+                    <Sparkles size={18} />
                   </div>
-                  <h2 style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-semibold">
+                  <h2 className="text-base font-bold text-white">
                     AI Workflow Generator
                   </h2>
                 </div>
                 {(isGeneratingPreview || previewSteps.length > 0) && (
-                  <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgb(var(--text-secondary))' }}>
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
                     {isGeneratingPreview ? (
                       <>
                         <Loader size={12} className="animate-spin" />
@@ -723,8 +784,7 @@ export default function PlaygroundPage() {
                   value={aiInput}
                   onChange={(e) => setAiInput(e.target.value)}
                   placeholder="Describe your automation task in plain English...&#10;&#10;Examples:\n• How do I create a project in Linear?\n• Login to GitHub and search for React repositories\n• Scrape product prices from Amazon\n• Fill out a form on example.com"
-                  style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                  className="w-full p-3 pr-4 border rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm placeholder:text-gray-400"
+                  className="w-full p-3 pr-4 border border-white/10 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm placeholder:text-gray-500 bg-white/5 text-white"
                   rows={4}
                 />
                 
@@ -734,8 +794,7 @@ export default function PlaygroundPage() {
                       <button
                         key={suggestion}
                         onClick={() => setAiInput(suggestion)}
-                        style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-secondary))' }}
-                        className="text-[10px] px-2 py-1 rounded-full border hover:border-blue-400 hover:text-blue-500 transition-colors whitespace-nowrap"
+                        className="text-[10px] px-2 py-1 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:border-indigo-400 hover:text-indigo-400 transition-colors whitespace-nowrap"
                       >
                         {suggestion}
                       </button>
@@ -745,7 +804,7 @@ export default function PlaygroundPage() {
                   <button
                     onClick={handleGenerateFromAI}
                     disabled={!aiInput.trim() || isGenerating}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm hover:shadow flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-indigo-500/25 hover:shadow flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isGenerating ? (
                       <>
@@ -765,8 +824,8 @@ export default function PlaygroundPage() {
           </div>
 
           {/* Action Palette */}
-          <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="p-4 border-b">
-            <label style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-semibold block mb-3">
+          <div className="p-4 border-b border-white/10 bg-white/5 flex-shrink-0">
+            <label className="text-base font-bold block mb-3 text-white">
               Add Action
             </label>
             <div className="flex flex-wrap gap-2">
@@ -774,10 +833,9 @@ export default function PlaygroundPage() {
                 <button
                   key={actionType}
                   onClick={() => addStep(actionType)}
-                  style={{ borderColor: 'rgb(var(--border-color))' }}
-                  className="px-3 py-1.5 text-sm border rounded-lg hover-glow transition-all"
+                  className="px-4 py-2 text-sm rounded-lg border border-white/10 bg-white/5 hover:bg-indigo-500/20 hover:border-indigo-500/50 transition-all duration-200 text-white capitalize font-medium"
                 >
-                  <span style={{ color: 'rgb(var(--text-primary))' }} className="capitalize">{actionType}</span>
+                  {actionType}
                 </button>
               ))}
             </div>
@@ -786,21 +844,21 @@ export default function PlaygroundPage() {
           {/* Steps List */}
           <div className="flex-1 overflow-y-auto p-4">
             {steps.length > 0 && (
-              <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.3)' }} className="mb-4 p-3 rounded-lg border">
-                <p style={{ color: 'rgb(var(--text-primary))' }} className="text-xs font-medium flex items-center gap-2">
-                  <span className="text-blue-500">💡</span>
+              <div className="mb-4 p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10">
+                <p className="text-xs font-medium flex items-center gap-2 text-white">
+                  <span className="text-indigo-400">💡</span>
                   Click any field below to edit it directly. Your changes help the AI learn!
                 </p>
               </div>
             )}
             {steps.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <div style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }} className="w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                  <Plus style={{ color: 'rgb(var(--text-secondary))' }} size={28} />
+              <div className="flex flex-col items-center justify-center h-full py-12">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center mb-6">
+                  <Plus className="text-indigo-400" size={36} />
                 </div>
-                <p style={{ color: 'rgb(var(--text-primary))' }} className="font-medium mb-1">No steps yet</p>
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm text-center">
-                  Use AI to generate a workflow or add actions manually
+                <p className="font-semibold text-lg mb-2 text-white">No steps yet</p>
+                <p className="text-base text-center max-w-xs text-gray-400">
+                  Use AI to generate a workflow or add actions manually from the palette above
                 </p>
               </div>
             ) : (
@@ -836,12 +894,12 @@ export default function PlaygroundPage() {
           </div>
         </div>
 
-        {/* Right Panel - Preview */}
-        <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="w-1/2 flex flex-col border-l">
-          <div className="p-4 border-b flex justify-between items-center" style={{ borderColor: 'rgb(var(--border-color))' }}>
+        {/* Right Panel - Live Browser Preview (50% width - reduced) */}
+        <div className="w-1/2 flex flex-col bg-[#0a0a0f]/80 backdrop-blur-xl">
+          <div className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0 bg-white/5">
             <div>
-              <h2 style={{ color: 'rgb(var(--text-primary))' }} className="text-lg font-semibold flex items-center gap-2">
-                Live Preview
+              <h2 className="text-lg font-bold flex items-center gap-2 text-white">
+                Live Browser Preview
                 {isRunning && (
                   <span className="flex h-2 w-2 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -849,23 +907,23 @@ export default function PlaygroundPage() {
                   </span>
                 )}
               </h2>
-              <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mt-1">
+              <p className="text-sm mt-1 text-gray-400">
                 Real-time browser automation view
               </p>
             </div>
             {pageState && (
-              <div style={{ backgroundColor: 'rgb(34 197 94 / 0.1)', color: 'rgb(34 197 94)' }} className="flex items-center gap-2 px-2 py-1 rounded text-xs font-medium">
+              <div className="flex items-center gap-2 px-2 py-1 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
                 Connected
               </div>
             )}
           </div>
           
-          <div className="flex-1 overflow-hidden p-6 flex flex-col" style={{ backgroundColor: 'rgb(var(--bg-tertiary))' }}>
-            {/* Browser Window Chrome */}
-            <div style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))' }} className="rounded-t-xl shadow-xl overflow-hidden border border-b-0 flex flex-col h-full">
+          <div className="flex-1 overflow-hidden p-4 flex flex-col bg-white/5">
+            {/* Browser Window Chrome - Full Height */}
+            <div className="rounded-xl shadow-2xl overflow-hidden border border-white/10 flex flex-col flex-1 bg-[#0a0a0f]">
               {/* Browser Toolbar */}
-              <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="border-b p-3 flex items-center gap-4">
+              <div className="border-b border-white/10 p-3 flex items-center gap-4 bg-white/5">
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-400"></div>
                   <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
@@ -879,16 +937,16 @@ export default function PlaygroundPage() {
                 </div>
 
                 {/* Address Bar */}
-                <div style={{ backgroundColor: 'rgb(var(--bg-tertiary))', borderColor: 'rgb(var(--border-color))' }} className="flex-1 rounded-md border px-3 py-1.5 flex items-center gap-2 text-sm">
+                <div className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 flex items-center gap-2 text-sm">
                   <Lock size={12} className="text-green-500" />
-                  <span style={{ color: 'rgb(var(--text-secondary))' }} className="truncate flex-1 font-mono text-xs">
+                  <span className="truncate flex-1 font-mono text-xs text-gray-400">
                     {pageState?.url || 'about:blank'}
                   </span>
                 </div>
               </div>
 
               {/* Browser Viewport */}
-              <div style={{ backgroundColor: 'rgb(var(--bg-primary))' }} className="flex-1 relative overflow-auto">
+              <div className="flex-1 relative overflow-auto bg-[#0a0a0f]">
                 {/* Show live screenshot when running or after run */}
                 {currentScreenshot && hasRun ? (
                   <div className="relative min-h-full">
@@ -900,9 +958,9 @@ export default function PlaygroundPage() {
                     {/* Overlay for loading state */}
                     {isRunning && (
                       <div className="absolute inset-0 bg-black/5 backdrop-blur-[1px] flex items-center justify-center transition-all duration-300">
-                        <div style={{ backgroundColor: 'rgb(var(--bg-primary) / 0.95)', borderColor: 'rgb(var(--border-color))' }} className="border px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
-                          <Loader className="animate-spin text-blue-500" size={16} />
-                          <span style={{ color: 'rgb(var(--text-primary))' }}>Executing step {currentStep + 1}...</span>
+                        <div className="border border-white/10 bg-[#0a0a0f]/95 px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
+                          <Loader className="animate-spin text-indigo-500" size={16} />
+                          <span className="text-white">Executing step {currentStep + 1}...</span>
                         </div>
                       </div>
                     )}
@@ -912,11 +970,11 @@ export default function PlaygroundPage() {
                   <div className="h-full p-6 overflow-y-auto">
                     <div className="max-w-2xl mx-auto space-y-4">
                       <div className="text-center mb-6">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 mb-3">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/15 text-emerald-400 mb-3">
                           <Check size={16} />
                           <span className="text-sm font-medium">Workflow Ready</span>
                         </div>
-                        <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">
+                        <p className="text-sm text-gray-400">
                           {steps.length} steps configured • Click "Run All" to execute
                         </p>
                       </div>
@@ -925,15 +983,13 @@ export default function PlaygroundPage() {
                         {steps.map((step: any, index) => (
                           <div
                             key={step.id}
-                            style={{ 
-                              backgroundColor: executionResults.has(index) 
-                                ? executionResults.get(index)?.status === 'success' ? '#10b98110' : '#ef444410'
-                                : 'rgb(var(--bg-secondary))', 
-                              borderColor: executionResults.has(index)
-                                ? executionResults.get(index)?.status === 'success' ? '#10b981' : '#ef4444'
-                                : 'rgb(var(--border-color))',
-                            }}
-                            className="border rounded-lg p-4 transition-all"
+                            className={`border rounded-xl p-4 transition-all ${
+                              executionResults.has(index)
+                                ? executionResults.get(index)?.status === 'success' 
+                                  ? 'bg-emerald-500/10 border-emerald-500/30' 
+                                  : 'bg-red-500/10 border-red-500/30'
+                                : 'bg-white/5 border-white/10'
+                            }`}
                           >
                             <div className="flex items-start gap-3">
                               <div className="flex-shrink-0">
@@ -957,28 +1013,28 @@ export default function PlaygroundPage() {
                               </div>
                               <div className="flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#3b82f6' }}>
+                                  <span className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
                                     {step.type}
                                   </span>
                                   {currentStep === index && isRunning && (
-                                    <Loader size={12} className="animate-spin text-blue-500" />
+                                    <Loader size={12} className="animate-spin text-indigo-500" />
                                   )}
                                 </div>
-                                <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+                                <p className="text-sm font-medium text-white">
                                   {step.description || `${step.type} action`}
                                 </p>
                                 {step.url && (
-                                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono truncate">
+                                  <p className="text-xs font-mono truncate text-gray-400">
                                     📍 {step.url}
                                   </p>
                                 )}
                                 {step.selector && (
-                                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono truncate">
+                                  <p className="text-xs font-mono truncate text-gray-400">
                                     🎯 {step.selector}
                                   </p>
                                 )}
                                 {step.value && (
-                                  <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono truncate">
+                                  <p className="text-xs font-mono truncate text-gray-400">
                                     ✏️ "{step.value}"
                                   </p>
                                 )}
@@ -989,12 +1045,12 @@ export default function PlaygroundPage() {
                       </div>
                       
                       {!hasRun && (
-                        <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20">
-                          <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium mb-2 flex items-center gap-2">
-                            <Play size={16} className="text-green-500" />
+                        <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-indigo-500/10 border border-emerald-500/20">
+                          <p className="text-sm font-medium mb-2 flex items-center gap-2 text-white">
+                            <Play size={16} className="text-emerald-400" />
                             Ready to run!
                           </p>
-                          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">
+                          <p className="text-xs text-gray-400">
                             Edit any step on the left panel - changes sync here instantly. Click "Run All" to start automation.
                           </p>
                         </div>
@@ -1006,19 +1062,19 @@ export default function PlaygroundPage() {
                   <div className="h-full p-6 overflow-y-auto">
                     <div className="max-w-2xl mx-auto space-y-4">
                       <div className="text-center mb-6">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mb-3">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/15 text-indigo-400 mb-3">
                           <Zap size={16} />
                           <span className="text-sm font-medium">Workflow Preview</span>
                         </div>
-                        <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">
+                        <p className="text-sm text-gray-400">
                           {isGeneratingPreview ? 'Analyzing your task...' : `${previewSteps.length} automated steps`}
                         </p>
                       </div>
                       
                       {isGeneratingPreview ? (
                         <div className="flex flex-col items-center justify-center py-12">
-                          <Loader className="animate-spin text-blue-500 mb-4" size={32} />
-                          <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">
+                          <Loader className="animate-spin text-indigo-500 mb-4" size={32} />
+                          <p className="text-sm text-gray-400">
                             Generating workflow steps...
                           </p>
                         </div>
@@ -1027,35 +1083,31 @@ export default function PlaygroundPage() {
                           {previewSteps.map((step, index) => (
                             <div
                               key={index}
-                              style={{ 
-                                backgroundColor: 'rgb(var(--bg-secondary))', 
-                                borderColor: 'rgb(var(--border-color))',
-                                animationDelay: `${index * 50}ms`
-                              }}
-                              className="border rounded-lg p-4 hover:shadow-md transition-all animate-fade-in-up"
+                              className="border border-white/10 bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all animate-fade-in-up"
+                              style={{ animationDelay: `${index * 50}ms` }}
                             >
                               <div className="flex items-start gap-3">
                                 <div className="flex-shrink-0">
-                                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-600 flex items-center justify-center text-sm font-semibold">
+                                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-semibold">
                                     {index + 1}
                                   </div>
                                 </div>
                                 <div className="flex-1 space-y-2">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold uppercase tracking-wide text-blue-600" style={{ color: '#3b82f6' }}>
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
                                       {step.type}
                                     </span>
                                   </div>
-                                  <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+                                  <p className="text-sm font-medium text-white">
                                     {step.description}
                                   </p>
                                   {step.url && (
-                                    <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono truncate">
+                                    <p className="text-xs font-mono truncate text-gray-400">
                                       {step.url}
                                     </p>
                                   )}
                                   {step.selector && (
-                                    <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs font-mono">
+                                    <p className="text-xs font-mono text-gray-400">
                                       {step.selector}
                                     </p>
                                   )}
@@ -1064,11 +1116,11 @@ export default function PlaygroundPage() {
                             </div>
                           ))}
                           
-                          <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
-                            <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium mb-2">
+                          <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
+                            <p className="text-sm font-medium mb-2 text-white">
                               Ready to automate!
                             </p>
-                            <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">
+                            <p className="text-xs text-gray-400">
                               Click "Generate" to create this workflow and save it to your Workflows page.
                             </p>
                           </div>
@@ -1078,13 +1130,13 @@ export default function PlaygroundPage() {
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-                    <div style={{ backgroundColor: 'rgb(var(--bg-secondary))' }} className="w-24 h-24 rounded-full flex items-center justify-center mb-6">
-                      <Globe size={48} strokeWidth={1} style={{ color: 'rgb(var(--text-secondary))' }} />
+                    <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6 bg-white/5 border border-white/10">
+                      <Globe size={48} strokeWidth={1} className="text-gray-500" />
                     </div>
-                    <h3 style={{ color: 'rgb(var(--text-primary))' }} className="text-lg font-medium mb-2">
+                    <h3 className="text-lg font-medium mb-2 text-white">
                       Ready to Browse
                     </h3>
-                    <p style={{ color: 'rgb(var(--text-secondary))' }} className="max-w-xs mx-auto text-sm">
+                    <p className="max-w-xs mx-auto text-sm text-gray-400">
                       Start typing your task description to see a live preview of the workflow steps.
                     </p>
                   </div>
@@ -1092,7 +1144,7 @@ export default function PlaygroundPage() {
               </div>
               
               {/* Status Bar */}
-              <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-secondary))' }} className="border-t px-3 py-1 text-xs flex justify-between items-center">
+              <div className="border-t border-white/10 bg-white/5 px-3 py-1 text-xs flex justify-between items-center text-gray-400">
                 <span>{pageState?.title || 'New Tab'}</span>
                 <span>{currentScreenshot ? '1280 x 720' : 'No active session'}</span>
               </div>
@@ -1103,12 +1155,12 @@ export default function PlaygroundPage() {
 
       {/* Save Dialog */}
       {showSaveDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div style={{ backgroundColor: 'rgb(var(--bg-secondary))' }} className="rounded-xl p-6 max-w-md w-full mx-4">
-            <h2 style={{ color: 'rgb(var(--text-primary))' }} className="text-xl font-bold mb-4">Save Workflow</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-2xl border border-white/10 bg-[#0a0a0f] p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h2 className="text-xl font-bold mb-4 text-white">Save Workflow</h2>
             <div className="space-y-4">
               <div>
-                <label style={{ color: 'rgb(var(--text-primary))' }} className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-medium mb-2 text-white">
                   Workflow Name *
                 </label>
                 <input
@@ -1116,20 +1168,18 @@ export default function PlaygroundPage() {
                   value={workflowName}
                   onChange={(e) => setWorkflowName(e.target.value)}
                   placeholder="My Automation Workflow"
-                  style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label style={{ color: 'rgb(var(--text-primary))' }} className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-medium mb-2 text-white">
                   Description
                 </label>
                 <textarea
                   value={workflowDescription}
                   onChange={(e) => setWorkflowDescription(e.target.value)}
                   placeholder="Describe what this workflow does..."
-                  style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   rows={3}
                 />
               </div>
@@ -1154,34 +1204,33 @@ export default function PlaygroundPage() {
 
       {/* Feedback Dialog */}
       {showFeedbackDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div style={{ backgroundColor: 'rgb(var(--bg-secondary))' }} className="rounded-xl p-6 max-w-lg w-full mx-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="rounded-2xl border border-white/10 bg-[#0a0a0f] p-6 max-w-lg w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white">
+              <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white shadow-lg shadow-purple-500/25">
                 <Lightbulb size={24} />
               </div>
               <div>
-                <h2 style={{ color: 'rgb(var(--text-primary))' }} className="text-xl font-bold">Help AI Learn</h2>
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">Your feedback helps improve workflow generation</p>
+                <h2 className="text-xl font-bold text-white">Help AI Learn</h2>
+                <p className="text-sm text-gray-400">Your feedback helps improve workflow generation</p>
               </div>
             </div>
             
             <div className="space-y-4">
-              <div style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))' }} className="p-4 border rounded-lg">
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mb-2">You made <span className="font-bold text-purple-500">{steps.length - originalGeneratedSteps.length !== 0 ? Math.abs(steps.length - originalGeneratedSteps.length) : steps.filter((s, i) => JSON.stringify(s) !== JSON.stringify(originalGeneratedSteps[i])).length}</span> changes to the AI-generated workflow</p>
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs">By submitting feedback, you help the AI learn correct selectors, timeouts, and step sequences for this website.</p>
+              <div className="p-4 border border-white/10 rounded-xl bg-white/5">
+                <p className="text-sm mb-2 text-gray-300">You made <span className="font-bold text-purple-400">{steps.length - originalGeneratedSteps.length !== 0 ? Math.abs(steps.length - originalGeneratedSteps.length) : steps.filter((s, i) => JSON.stringify(s) !== JSON.stringify(originalGeneratedSteps[i])).length}</span> changes to the AI-generated workflow</p>
+                <p className="text-xs text-gray-500">By submitting feedback, you help the AI learn correct selectors, timeouts, and step sequences for this website.</p>
               </div>
               
               <div>
-                <label style={{ color: 'rgb(var(--text-primary))' }} className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-medium mb-2 text-white">
                   Additional Notes (Optional)
                 </label>
                 <textarea
                   value={feedbackNotes}
                   onChange={(e) => setFeedbackNotes(e.target.value)}
                   placeholder="E.g., 'Amazon needs longer timeouts', 'Search box selector was wrong', etc."
-                  style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                  className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                   rows={3}
                 />
               </div>
@@ -1217,77 +1266,11 @@ export default function PlaygroundPage() {
         </div>
       )}
 
-      {/* Professional Clear Confirmation Dialog */}
-      {showClearDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-          <div 
-            style={{ backgroundColor: 'rgb(var(--bg-secondary))' }} 
-            className="rounded-2xl p-0 max-w-md w-full mx-4 shadow-2xl overflow-hidden animate-scale-in"
-          >
-            {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                  <Eraser size={24} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Clear Workspace</h2>
-                  <p className="text-white/80 text-sm">This action cannot be undone</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Content */}
-            <div className="p-6 space-y-4">
-              <div style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: 'rgb(var(--border-color))' }} className="p-4 border rounded-xl">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Trash2 size={20} className="text-orange-600" />
-                  </div>
-                  <div>
-                    <p style={{ color: 'rgb(var(--text-primary))' }} className="font-medium mb-1">
-                      You're about to clear {steps.length} workflow step{steps.length !== 1 ? 's' : ''}
-                    </p>
-                    <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm">
-                      All generated steps, AI input, and execution history will be permanently removed. The browser session will be reset.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.2)' }} className="p-3 border rounded-lg">
-                <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm flex items-center gap-2">
-                  <Lightbulb size={16} className="text-blue-500" />
-                  <span>Tip: Use <strong>Reset</strong> to keep your steps but clear execution results.</span>
-                </p>
-              </div>
-              
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowClearDialog(false)}
-                  className="flex-1 px-4 py-3 rounded-xl font-medium transition-all border-2 hover:bg-gray-50"
-                  style={{ borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleClearAll}
-                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-4 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                >
-                  <Eraser size={18} />
-                  Clear Everything
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Suggestions Panel */}
       {showSuggestions && suggestions.length > 0 && (
         <div className="fixed bottom-4 right-4 w-96 z-40">
-          <div style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))' }} className="border-2 rounded-xl shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3 flex items-center justify-between">
+          <div className="border border-white/10 rounded-2xl shadow-2xl overflow-hidden bg-[#0a0a0f]">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-white">
                 <Lightbulb size={18} />
                 <span className="font-semibold">AI Suggestions</span>
@@ -1300,27 +1283,29 @@ export default function PlaygroundPage() {
               </button>
             </div>
             <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-              <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-sm mb-3">
+              <p className="text-sm mb-3 text-gray-400">
                 Based on past user corrections for similar tasks:
               </p>
               {suggestions.map((suggestion, index) => (
                 <div
                   key={index}
-                  style={{ backgroundColor: 'rgb(var(--bg-primary))', borderColor: suggestion.priority === 'high' ? '#ef4444' : suggestion.priority === 'medium' ? '#f59e0b' : 'rgb(var(--border-color))' }}
-                  className="p-3 border-2 rounded-lg"
+                  className={`p-3 border rounded-xl bg-white/5 ${
+                    suggestion.priority === 'high' ? 'border-red-500/50' : 
+                    suggestion.priority === 'medium' ? 'border-amber-500/50' : 'border-white/10'
+                  }`}
                 >
                   <div className="flex items-start gap-2">
                     <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
                       suggestion.priority === 'high' ? 'bg-red-500' :
                       suggestion.priority === 'medium' ? 'bg-yellow-500' :
-                      'bg-blue-500'
+                      'bg-indigo-500'
                     }`} />
                     <div className="flex-1">
-                      <p style={{ color: 'rgb(var(--text-primary))' }} className="text-sm font-medium">
+                      <p className="text-sm font-medium text-white">
                         {suggestion.message}
                       </p>
                       {suggestion.frequency && (
-                        <p style={{ color: 'rgb(var(--text-secondary))' }} className="text-xs mt-1">
+                        <p className="text-xs mt-1 text-gray-400">
                           Learned from {suggestion.frequency} correction{suggestion.frequency > 1 ? 's' : ''}
                         </p>
                       )}
@@ -1385,15 +1370,15 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
   const getStepColor = () => {
     if (isError) return '#ef4444';
     if (isCompleted) return '#10b981';
-    if (isActive) return '#3b82f6';
-    return 'rgb(var(--text-secondary))';
+    if (isActive) return '#6366f1';
+    return '#9ca3af';
   };
 
   const getStepBg = () => {
-    if (isError) return '#ef444420';
-    if (isCompleted) return '#10b98120';
-    if (isActive) return '#3b82f620';
-    return 'rgb(var(--bg-primary))';
+    if (isError) return 'rgba(239, 68, 68, 0.1)';
+    if (isCompleted) return 'rgba(16, 185, 129, 0.1)';
+    if (isActive) return 'rgba(99, 102, 241, 0.1)';
+    return 'rgba(255, 255, 255, 0.05)';
   };
 
   const getStatusIcon = () => {
@@ -1409,10 +1394,10 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
       style={{
         ...style,
         backgroundColor: getStepBg(),
-        borderColor: isActive ? '#3b82f6' : isError ? '#ef4444' : 'rgb(var(--border-color))',
+        borderColor: isActive ? '#6366f1' : isError ? '#ef4444' : 'rgba(255,255,255,0.1)',
         zIndex: isDragging ? 1000 : 'auto',
       }}
-      className={`border-2 rounded-xl p-4 hover-glow step-card ${isDragging ? 'shadow-2xl ring-2 ring-blue-400' : ''}`}
+      className={`border rounded-2xl p-4 hover-glow step-card ${isDragging ? 'shadow-2xl ring-2 ring-indigo-400' : ''}`}
     >
       <div className="flex items-start gap-3">
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1422,14 +1407,14 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
             {...listeners}
             className={`
               p-1 rounded-lg transition-all duration-200 
-              ${isRunning ? 'cursor-not-allowed opacity-50' : 'cursor-grab hover:bg-gray-100 hover:scale-110 active:cursor-grabbing active:scale-95'}
-              ${isDragging ? 'cursor-grabbing bg-blue-100' : ''}
+              ${isRunning ? 'cursor-not-allowed opacity-50' : 'cursor-grab hover:bg-white/10 hover:scale-110 active:cursor-grabbing active:scale-95'}
+              ${isDragging ? 'cursor-grabbing bg-indigo-500/20' : ''}
             `}
             title="Drag to reorder"
             aria-label="Drag handle to reorder step"
           >
             <GripVertical 
-              style={{ color: isDragging ? '#3b82f6' : 'rgb(var(--text-secondary))' }} 
+              className={isDragging ? 'text-indigo-400' : 'text-gray-400'}
               size={20}
             />
           </div>
@@ -1474,8 +1459,7 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
               autoComplete="off"
               readOnly={false}
               disabled={isRunning}
-              style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-              className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
             />
           )}
 
@@ -1490,8 +1474,7 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
               spellCheck={false}
               readOnly={false}
               disabled={isRunning}
-              style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-              className="w-full px-3 py-2 border-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
             />
           )}
 
@@ -1505,8 +1488,7 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
               autoComplete="off"
               readOnly={false}
               disabled={isRunning}
-              style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-              className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
             />
           )}
 
@@ -1523,8 +1505,7 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
                   spellCheck={false}
                   readOnly={false}
                   disabled={isRunning}
-                  style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                  className="w-full px-3 py-2 border-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 mb-2 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
                 />
               )}
               <input
@@ -1537,8 +1518,7 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
                 step="1000"
                 readOnly={false}
                 disabled={isRunning}
-                style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-primary))' }}
-                className="w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
               />
             </>
           )}
@@ -1553,17 +1533,16 @@ const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, is
             autoComplete="off"
             readOnly={false}
             disabled={isRunning}
-            style={{ backgroundColor: 'rgb(var(--bg-secondary))', borderColor: 'rgb(var(--border-color))', color: 'rgb(var(--text-secondary))' }}
-            className="w-full px-3 py-2 border-2 rounded-lg text-xs italic focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border border-white/10 bg-white/5 text-gray-400 rounded-xl text-xs italic focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-600"
           />
 
           {result && (
-            <div style={{ backgroundColor: isError ? '#ef444410' : '#10b98110' }} className="p-2 rounded text-xs">
-              <p style={{ color: isError ? '#ef4444' : '#10b981' }} className="font-medium">
+            <div className={`p-2 rounded-xl text-xs ${isError ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
+              <p className={`font-medium ${isError ? 'text-red-400' : 'text-emerald-400'}`}>
                 {result.message}
               </p>
               {result.duration_ms && (
-                <p style={{ color: 'rgb(var(--text-secondary))' }} className="mt-1">
+                <p className="mt-1 text-gray-400">
                   Duration: {result.duration_ms}ms
                 </p>
               )}
