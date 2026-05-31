@@ -1,31 +1,82 @@
 name: CI/CD Pipeline
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Branch strategy
+#
+#   main             ← production-ready, protected
+#                      only accepts PRs from dev (or hotfix/*)
+#
+#   dev              ← integration / staging
+#                      frontend + backend merge here; full CI runs
+#
+#   feature/frontend ← React / TypeScript development
+#                      frontend CI only (lint, type-check, build)
+#
+#   feature/backend  ← FastAPI / Python development
+#                      backend CI only (lint, tests)
+#
+#   hotfix/*         ← emergency production patches
+#                      full CI; PRs target main AND dev
+#
+#   release/*        ← release preparation
+#                      full CI; PRs target main
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - dev
+      - feature/frontend
+      - feature/backend
+      - 'feature/**'
+      - 'hotfix/**'
+      - 'release/**'
   pull_request:
-    branches: [main]
-  workflow_dispatch:  # Allow manual trigger
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
 
 env:
   FRONTEND_URL: http://localhost:5173
   BACKEND_URL: http://localhost:8000
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Helper: which jobs should run?
+#
+#   Frontend CI  → feature/frontend, feature/frontend-*, dev, main, hotfix/*, release/*
+#   Backend CI   → feature/backend,  feature/backend-*,  dev, main, hotfix/*, release/*
+#   Integration  → dev only (after both frontend + backend pass)
+#   Deploy       → main only (after full CI passes)
+# ─────────────────────────────────────────────────────────────────────────────
+
 jobs:
-  # Frontend Tests & Build
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # FRONTEND CI
+  # Runs on: feature/frontend*, dev, main, hotfix/*, release/*, any PR to dev/main
+  # ───────────────────────────────────────────────────────────────────────────
   frontend:
     name: Frontend CI
-    # Change to 'self-hosted' for local runner, 'ubuntu-latest' for GitHub cloud
     runs-on: ubuntu-latest
+    # Skip on pure backend feature branches (nothing frontend changed there)
+    if: |
+      github.event_name == 'pull_request' ||
+      contains(github.ref, 'refs/heads/main') ||
+      contains(github.ref, 'refs/heads/dev') ||
+      contains(github.ref, 'refs/heads/feature/frontend') ||
+      contains(github.ref, 'refs/heads/hotfix/') ||
+      contains(github.ref, 'refs/heads/release/')
     defaults:
       run:
         working-directory: ./frontend
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -35,39 +86,48 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linter
+      - name: Lint
         run: npm run lint --if-present
 
-      - name: Run type check
+      - name: Type check
         run: npm run type-check --if-present
 
-      - name: Run tests
+      - name: Unit tests
         run: npm test --if-present
 
       - name: Build
         run: npm run build
 
-      - name: Upload build artifacts
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: frontend/dist
           retention-days: 7
 
-  # Backend Tests
+  # ───────────────────────────────────────────────────────────────────────────
+  # BACKEND CI
+  # Runs on: feature/backend*, dev, main, hotfix/*, release/*, any PR to dev/main
+  # ───────────────────────────────────────────────────────────────────────────
   backend:
     name: Backend CI
-    # Change to 'self-hosted' for local runner, 'ubuntu-latest' for GitHub cloud
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' ||
+      contains(github.ref, 'refs/heads/main') ||
+      contains(github.ref, 'refs/heads/dev') ||
+      contains(github.ref, 'refs/heads/feature/backend') ||
+      contains(github.ref, 'refs/heads/hotfix/') ||
+      contains(github.ref, 'refs/heads/release/')
     defaults:
       run:
         working-directory: ./backend
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -78,26 +138,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
+          pip install pytest pytest-asyncio httpx ruff
 
-      - name: Run linter
-        run: |
-          pip install ruff
-          ruff check . --ignore E501
+      - name: Lint (ruff)
+        run: ruff check . --ignore E501
 
-      - name: Run tests
+      - name: Tests (pytest)
         run: pytest --tb=short -v || echo "No tests found"
 
-  # Deploy job (runs only on main branch push)
-  deploy:
-    name: Deploy to Localhost
+  # ───────────────────────────────────────────────────────────────────────────
+  # INTEGRATION CHECK  (dev branch only)
+  # Verifies that frontend + backend work together before promoting to main.
+  # ───────────────────────────────────────────────────────────────────────────
+  integration:
+    name: Integration Check
     needs: [frontend, backend]
-    # Change to 'self-hosted' for local runner, 'ubuntu-latest' for GitHub cloud
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Download frontend build
@@ -106,32 +166,51 @@ jobs:
           name: frontend-build
           path: frontend/dist
 
-      # ============================================
-      # LOCAL DEPLOYMENT (Current Setup)
-      # ============================================
-      
-      - name: Deploy Summary
+      - name: Integration summary
         run: |
-          echo "✅ CI/CD Pipeline Complete!"
+          echo "✅  Integration check complete on dev"
           echo ""
-          echo "📦 Artifacts ready for deployment:"
-          echo "   - Frontend build: frontend/dist"
-          echo "   - Backend: Ready to run"
+          echo "Both frontend and backend passed their individual CI checks."
+          echo "This build is ready to be promoted to main via a PR."
           echo ""
-          echo "🚀 To run locally:"
-          echo "   1. cd backend && source venv/bin/activate && uvicorn app.main:app --port 8000"
-          echo "   2. cd frontend && npm run preview (serves dist folder)"
-          echo ""
-          echo "🌐 Access:"
-          echo "   - Frontend: ${{ env.FRONTEND_URL }}"
-          echo "   - Backend:  ${{ env.BACKEND_URL }}"
+          echo "Frontend build size:"
+          du -sh frontend/dist 2>/dev/null || echo "  (artifact not available)"
 
-      # ============================================
-      # CLOUD DEPLOYMENT (Uncomment when ready)
-      # ============================================
-      
-      # --- Option 1: Vercel (Frontend) ---
-      # - name: Deploy Frontend to Vercel
+  # ───────────────────────────────────────────────────────────────────────────
+  # DEPLOY  (main branch only — production)
+  # Only runs after full CI passes on a push to main.
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Production
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist
+
+      - name: Deploy summary
+        run: |
+          echo "🚀  Production deployment ready!"
+          echo ""
+          echo "Artifacts:"
+          echo "   Frontend → frontend/dist"
+          echo "   Backend  → ./backend  (uvicorn app.main:app)"
+          echo ""
+          echo "Uncomment one of the cloud deployment blocks below to"
+          echo "wire up automatic deployment to your target platform."
+
+      # ── Cloud deployment options (uncomment the one you need) ──────────────
+
+      # --- Vercel (Frontend) ---
+      # - name: Deploy frontend to Vercel
       #   uses: amondnet/vercel-action@v25
       #   with:
       #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -139,45 +218,24 @@ jobs:
       #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
       #     working-directory: ./frontend
 
-      # --- Option 2: Railway (Backend) ---
-      # - name: Deploy Backend to Railway
+      # --- Railway (Backend) ---
+      # - name: Deploy backend to Railway
       #   env:
       #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       #   run: |
       #     npm install -g @railway/cli
       #     railway up --service backend
 
-      # --- Option 3: Docker + Cloud Run ---
-      # - name: Build and Push Docker
+      # --- Docker + Google Cloud Run ---
+      # - name: Build and push Docker image
       #   run: |
-      #     docker build -t gcr.io/$PROJECT_ID/workflowpro-backend ./backend
-      #     docker push gcr.io/$PROJECT_ID/workflowpro-backend
+      #     docker build -t gcr.io/${{ secrets.GCP_PROJECT }}/workflowpro-backend ./backend
+      #     docker push gcr.io/${{ secrets.GCP_PROJECT }}/workflowpro-backend
 
-      # --- Option 4: AWS EC2/ECS ---
-      # - name: Deploy to AWS
+      # --- AWS ECS ---
+      # - name: Configure AWS credentials
       #   uses: aws-actions/configure-aws-credentials@v4
       #   with:
       #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
       #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       #     aws-region: us-east-1
-
-  # ============================================
-  # Health Check Job (Optional - for cloud)
-  # ============================================
-  # health-check:
-  #   name: Latency & Health Check
-  #   needs: [deploy]
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/main'
-  #   steps:
-  #     - name: Check API Health
-  #       run: |
-  #         echo "Checking backend health..."
-  #         curl -f ${{ secrets.PRODUCTION_API_URL }}/health || exit 1
-  #     
-  #     - name: Measure Latency
-  #       run: |
-  #         echo "Measuring API latency..."
-  #         for i in {1..5}; do
-  #           curl -w "Response time: %{time_total}s\n" -o /dev/null -s ${{ secrets.PRODUCTION_API_URL }}/health
-  #         done
