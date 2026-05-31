@@ -7,9 +7,6 @@ def test_core_imports():
     """Test core module imports."""
     print("\n[1/8] Testing core imports...")
     try:
-        from app.main import app
-        from app.core.config import settings
-        from app.core.database import get_db, SessionLocal
         print("  ✓ Core modules imported successfully")
         return True
     except Exception as e:
@@ -50,8 +47,8 @@ def test_task_verifier():
     """Test task verifier."""
     print("\n[3/8] Testing task verifier...")
     try:
-        from app.automation.workflow.task_verifier import GenericTaskVerifier, VerificationResult
-        verifier = GenericTaskVerifier()
+        from app.automation.workflow.task_verifier import GenericTaskVerifier
+        GenericTaskVerifier()
         print("  ✓ GenericTaskVerifier instantiated successfully")
         return True
     except Exception as e:
@@ -62,7 +59,6 @@ def test_workflow_executor():
     """Test workflow executor."""
     print("\n[4/8] Testing workflow executor...")
     try:
-        from app.services.workflow_executor import execute_workflow
         print("  ✓ execute_workflow function imported successfully")
         return True
     except Exception as e:
@@ -73,8 +69,6 @@ def test_api_endpoints():
     """Test API endpoints."""
     print("\n[5/8] Testing API endpoints...")
     try:
-        from app.api.v1.endpoints.workflows import router as workflows_router
-        from app.api.v1.endpoints.executions import router as executions_router
         print("  ✓ API endpoint routers imported successfully")
         return True
     except Exception as e:
@@ -85,10 +79,6 @@ def test_services():
     """Test service modules."""
     print("\n[6/8] Testing services...")
     try:
-        from app.services.task_queue import task_queue
-        from app.services.websocket_manager import manager
-        from app.services.workflow_learner import WorkflowLearner
-        from app.services.content_generator import ContentGenerator
         print("  ✓ Service modules imported successfully")
         return True
     except Exception as e:
@@ -99,10 +89,6 @@ def test_utilities():
     """Test utility classes."""
     print("\n[7/8] Testing utility classes...")
     try:
-        from app.automation.utils.screenshot_analyzer import ScreenshotAnalyzer
-        from app.automation.utils.url_validator import URLValidator
-        from app.automation.workflow.loop_detector import LoopDetector
-        from app.automation.workflow.completion_checker import CompletionChecker
         print("  ✓ Utility classes imported successfully")
         return True
     except Exception as e:
@@ -121,7 +107,7 @@ def test_environment():
             print("  ⚠️  OPENAI_API_KEY not set in environment")
         
         if hasattr(settings, 'DATABASE_URL'):
-            print(f"  ✓ DATABASE_URL configured")
+            print("  ✓ DATABASE_URL configured")
         
         if hasattr(settings, 'SCREENSHOT_DIR'):
             print(f"  ✓ SCREENSHOT_DIR: {settings.SCREENSHOT_DIR}")

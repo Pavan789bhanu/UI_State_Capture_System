@@ -8,7 +8,7 @@ navigation, authentication, screenshots, and task execution in the right order.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from openai import AsyncOpenAI
 

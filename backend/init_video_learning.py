@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 from app.automation.agent.vision_agent import VisionAgent
-from app.automation.utils.logger import log
 
 
 async def main():
@@ -30,7 +29,7 @@ async def main():
     
     try:
         learning_context = await agent.learn_from_demo_videos()
-        print(f"   ✓ Video learning completed\n")
+        print("   ✓ Video learning completed\n")
         
         # Display learned patterns
         print("="*80)
@@ -105,7 +104,7 @@ async def main():
     
     print(f"Task: {sample_task}")
     print(f"Actions: {len(sample_actions)} steps")
-    print(f"Status: Success\n")
+    print("Status: Success\n")
     
     try:
         report = await agent.generate_comprehensive_report(
@@ -135,9 +134,9 @@ async def main():
     
     print("Summary:")
     print(f"  • VisionAgent learned from {len(list(Path('/Users/pavankumarmalasani/Downloads/ui_capture_system/data').glob('*.mp4')))} demo videos")
-    print(f"  • Extracted workflow patterns for multiple categories")
-    print(f"  • Learned report writing structure and best practices")
-    print(f"  • Ready to generate comprehensive reports with ending notes")
+    print("  • Extracted workflow patterns for multiple categories")
+    print("  • Learned report writing structure and best practices")
+    print("  • Ready to generate comprehensive reports with ending notes")
     print("\nThe VisionAgent will now use these learned patterns for all workflows!\n")
 
 

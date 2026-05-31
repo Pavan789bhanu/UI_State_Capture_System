@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
 type Theme = 'light' | 'dark' | 'midnight';
@@ -47,41 +47,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('compactMode');
     return saved === 'true';
   });
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem('effectsEnabled', String(effectsEnabled));
-  }, [effectsEnabled]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-accent', accentColor);
-    localStorage.setItem('accentColor', accentColor);
-  }, [accentColor]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-font-size', fontSize);
-    localStorage.setItem('fontSize', fontSize);
-  }, [fontSize]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-reduced-motion', String(reducedMotion));
-    localStorage.setItem('reducedMotion', String(reducedMotion));
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-compact', String(compactMode));
-    localStorage.setItem('compactMode', String(compactMode));
-  }, [compactMode]);
-
-  useEffect(() => {
-    // Trigger login animation
-    setIsLoaded(true);
-  }, []);
+  const [isLoaded] = useState(true);
 
   return (
     <ThemeContext.Provider value={{ 

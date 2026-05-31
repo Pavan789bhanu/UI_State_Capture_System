@@ -1,9 +1,7 @@
 """Workflow execution service that bridges API to automation engine."""
 
-import asyncio
 import json
-from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.automation.workflow.workflow_engine import WorkflowEngine
@@ -12,7 +10,6 @@ from app.automation.agent.vision_agent import VisionAgent
 from app.automation.agent.planner_agent import PlannerAgent
 from app.automation.browser.auth_manager import AuthManager
 from app.services.websocket_manager import manager
-from app.services.task_queue import task_queue
 from app.models.models import Execution, Workflow, ExecutionStatus
 from app.core.database import SessionLocal
 from app.core.config import settings, APP_URL_MAPPINGS
@@ -46,7 +43,7 @@ async def execute_workflow(execution_id: int, db: Session = None):
         if not workflow:
             print(f"[ERROR] Workflow {execution.workflow_id} not found")
             execution.status = ExecutionStatus.FAILED
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             db.commit()
             return
         
@@ -54,7 +51,7 @@ async def execute_workflow(execution_id: int, db: Session = None):
         
         # Update status to running
         execution.status = ExecutionStatus.RUNNING
-        execution.started_at = datetime.utcnow()
+        execution.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.commit()
         
         # Broadcast start event
@@ -182,7 +179,7 @@ async def execute_workflow(execution_id: int, db: Session = None):
                 execution.status = ExecutionStatus.FAILED
                 status_message = f"Workflow execution failed ({completion_percentage}%)"
             
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             if execution.started_at:
                 duration = (execution.completed_at - execution.started_at).total_seconds()
                 execution.duration = int(duration)
@@ -224,7 +221,7 @@ async def execute_workflow(execution_id: int, db: Session = None):
         except Exception as exec_error:
             # Handle execution failure
             execution.status = ExecutionStatus.FAILED
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             if execution.started_at:
                 duration = (execution.completed_at - execution.started_at).total_seconds()
                 execution.duration = int(duration)
@@ -262,7 +259,7 @@ async def execute_workflow(execution_id: int, db: Session = None):
                 execution = db.query(Execution).filter(Execution.id == execution_id).first()
                 if execution:
                     execution.status = ExecutionStatus.FAILED
-                    execution.completed_at = datetime.utcnow()
+                    execution.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
                     execution.result = json.dumps({"success": False, "error": str(e)})
                     db.commit()
             except Exception as db_error:

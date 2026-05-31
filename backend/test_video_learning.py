@@ -9,12 +9,10 @@ Tests:
 """
 
 import asyncio
-import json
 from pathlib import Path
 from typing import Dict, List
 
 from app.automation.agent.vision_agent import VisionAgent
-from app.automation.utils.logger import log
 
 
 class VideoLearningTester:
@@ -61,7 +59,7 @@ class VideoLearningTester:
             video_files = list(data_dir.glob("*.mp4"))
             
             if len(video_files) == 8:
-                self.log_result("Video discovery", True, f"Found all 8 demo videos")
+                self.log_result("Video discovery", True, "Found all 8 demo videos")
                 for video in video_files:
                     print(f"     • {video.name}")
                 return True
@@ -91,7 +89,6 @@ class VideoLearningTester:
             
             # Verify workflow patterns
             workflow_patterns = learning_context.get("workflow_patterns", {})
-            expected_categories = ["project_management", "document_creation", "content_research", "travel_booking", "ecommerce"]
             found_categories = list(workflow_patterns.keys())
             
             if len(found_categories) >= 3:  # At least 3 categories
@@ -189,7 +186,7 @@ class VideoLearningTester:
                 self.log_result(f"Report generation - {scenario['name']}", True, 
                                f"Report saved to {report_file}")
                 print(f"     Report length: {len(report)} characters")
-                print(f"     Contains ending note: Yes")
+                print("     Contains ending note: Yes")
                 
             except Exception as e:
                 self.log_result(f"Report generation - {scenario['name']}", False, f"Error: {e}")
@@ -245,7 +242,7 @@ class VideoLearningTester:
             passed_checks = sum(quality_checks.values())
             total_checks = len(quality_checks)
             
-            print(f"\nEnding Note Quality Analysis:")
+            print("\nEnding Note Quality Analysis:")
             for check, result in quality_checks.items():
                 status = "✓" if result else "✗"
                 print(f"  {status} {check}")

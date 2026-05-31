@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o")
     
     # Automation Settings
-    SCREENSHOT_DIR: Path = PROJECT_ROOT / "captured_dataset"
+    SCREENSHOT_DIR: Path = BACKEND_ROOT / "captured_dataset"
     
     # Workflow Engine Configuration
     LOOP_DETECTION_WINDOW: int = 6  # Number of actions to analyze for loop detection

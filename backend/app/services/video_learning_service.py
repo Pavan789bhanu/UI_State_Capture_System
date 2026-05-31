@@ -8,13 +8,10 @@ should be executed. It extracts:
 - Success criteria and completion indicators
 """
 
-import os
 import json
 import random
-import base64
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-import asyncio
+from typing import List, Dict, Any
 
 from app.core.config import settings
 
@@ -23,9 +20,9 @@ class VideoLearningService:
     """Processes demonstration videos to extract workflow learning examples."""
     
     def __init__(self, data_dir: str = None):
-        self.data_dir = Path(data_dir or "/Users/pavankumarmalasani/Downloads/ui_capture_system/data")
+        self.data_dir = Path(data_dir) if data_dir else settings.DATA_DIR
         self.cache_dir = self.data_dir / ".video_cache"
-        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         
     def get_available_videos(self) -> List[Dict[str, str]]:
         """Get list of available training videos."""

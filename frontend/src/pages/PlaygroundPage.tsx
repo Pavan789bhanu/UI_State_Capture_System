@@ -1,1576 +1,860 @@
-import { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Play, RotateCcw, Sparkles, Plus, Trash2, GripVertical, Eye, Check, X, Loader, Globe, Lock, RefreshCw, ChevronLeft, ChevronRight, Zap, ArrowRight, ThumbsUp, Lightbulb, Eraser } from 'lucide-react';
+/**
+ * PlaygroundPage — Natural-language browser automation interface.
+ *
+ * Type a plain English task, optionally provide a URL, hit Run.
+ * The AI plans steps, a live browser executes them, and you watch it all
+ * happen in real time with screenshots streaming back step-by-step.
+ */
+import { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Sparkles,
+  Play,
+  Square,
+  Globe,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Clock,
+  Camera,
+  AlertTriangle,
+  Download,
+  RotateCcw,
+  Save,
+  ArrowRight,
+  Zap,
+  Eye,
+  FileText,
+} from 'lucide-react';
 import { playgroundAPI } from '../services/playgroundAPI';
-import type { WorkflowStep, StepResult } from '../services/playgroundAPI';
-import { useNavigate } from 'react-router-dom';
+import type { AutomationEvent, WorkflowStep, StepResult } from '../services/playgroundAPI';
 import { apiClient } from '../services/api';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { usePlayground } from '../contexts/PlaygroundContext';
 import { useNotifications } from '../contexts/NotificationContext';
 
-// Component-based architecture for better maintainability
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+type RunPhase =
+  | 'idle'
+  | 'planning'
+  | 'browser_starting'
+  | 'running'
+  | 'complete'
+  | 'error';
+
+interface StepState {
+  step: WorkflowStep;
+  status: 'pending' | 'running' | 'success' | 'error';
+  result?: StepResult;
+  screenshot?: string;
+}
+
+interface RunRecord {
+  query: string;
+  url?: string;
+  startedAt: Date;
+  steps: StepState[];
+  success: boolean;
+  screenshots: string[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Example queries shown on the idle screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EXAMPLE_QUERIES = [
+  { label: 'Search GitHub', query: 'Go to github.com and search for "fastapi" repositories', url: 'https://github.com' },
+  { label: 'Check HN headlines', query: 'Open Hacker News and list the top 5 story titles', url: 'https://news.ycombinator.com' },
+  { label: 'Wikipedia lookup', query: 'Open Wikipedia and look up "Playwright browser automation"', url: 'https://en.wikipedia.org' },
+  { label: 'Product Hunt trends', query: 'Visit Product Hunt and show me today\'s top products', url: 'https://www.producthunt.com' },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Small helper components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StepIcon({ status }: { status: StepState['status'] }) {
+  if (status === 'pending') return <div className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600" />;
+  if (status === 'running') return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
+  if (status === 'success') return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
+  return <XCircle className="w-5 h-5 text-red-500" />;
+}
+
+function StepTypeBadge({ type }: { type: string }) {
+  const colors: Record<string, string> = {
+    navigate: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    click: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+    type: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    wait: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+    extract: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    screenshot: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+    select: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+  };
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${colors[type] ?? colors.wait}`}>
+      {type}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function PlaygroundPage() {
-  const navigate = useNavigate();
-  
-  // Use PlaygroundContext for persistent state across navigation
-  const { 
-    state: playgroundState,
-    setSteps: setContextSteps,
-    setOriginalGeneratedSteps: setContextOriginalSteps,
-    setAiInput: setContextAiInput,
-    setExecutionResults: setContextExecutionResults,
-    setCurrentScreenshot: setContextScreenshot,
-    setPageState: setContextPageState,
-    setHasRun: setContextHasRun,
-    setHasModifications: setContextHasModifications,
-    setLastSavedWorkflowId: setContextLastSavedId,
-    clearPlayground,
-  } = usePlayground();
-  
   const { addNotification } = useNotifications();
-  
-  // Local state derived from context for compatibility
-  const [steps, setSteps] = useState<WorkflowStep[]>(playgroundState.steps);
-  const [originalGeneratedSteps, setOriginalGeneratedSteps] = useState<WorkflowStep[]>(playgroundState.originalGeneratedSteps);
-  const [aiInput, setAiInput] = useState(playgroundState.aiInput);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
-  const [currentStep, setCurrentStep] = useState<number>(-1);
-  const [executionResults, setExecutionResults] = useState<Map<number, StepResult>>(playgroundState.executionResults);
-  const [currentScreenshot, setCurrentScreenshot] = useState<string | null>(playgroundState.currentScreenshot);
-  const [pageState, setPageState] = useState<{ url: string; title: string } | null>(playgroundState.pageState);
+
+  // ── Input state ──────────────────────────────────────────────────────────
+  const [query, setQuery] = useState('');
+  const [targetUrl, setTargetUrl] = useState('');
+  const [headless, setHeadless] = useState(false);
+  const [showUrlField, setShowUrlField] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // ── Execution state ──────────────────────────────────────────────────────
+  const [phase, setPhase] = useState<RunPhase>('idle');
+  const [stateMsg, setStateMsg] = useState('');
+  const [steps, setSteps] = useState<StepState[]>([]);
+  const [activeStep, setActiveStep] = useState<number>(-1);
+  const [liveScreenshot, setLiveScreenshot] = useState<string | null>(null);
+  const [planConfidence, setPlanConfidence] = useState<number | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [runSuccess, setRunSuccess] = useState<boolean | null>(null);
+
+  // ── History ──────────────────────────────────────────────────────────────
+  const [history, setHistory] = useState<RunRecord[]>([]);
+  const [expandedHistory, setExpandedHistory] = useState<number | null>(null);
+
+  // ── Save workflow dialog ─────────────────────────────────────────────────
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [workflowName, setWorkflowName] = useState('');
-  const [workflowDescription, setWorkflowDescription] = useState('');
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
-  const [lastSavedWorkflowId, setLastSavedWorkflowId] = useState<string | null>(playgroundState.lastSavedWorkflowId);
-  const [previewSteps, setPreviewSteps] = useState<WorkflowStep[]>([]);
-  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
-  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
-  const [feedbackNotes, setFeedbackNotes] = useState('');
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [hasModifications, setHasModifications] = useState(playgroundState.hasModifications);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [hasRun, setHasRun] = useState(playgroundState.hasRun); // Track if workflow has been executed
-  const [showClearDialog, setShowClearDialog] = useState(false); // Professional clear confirmation
-  const debounceTimerRef = useRef<number | null>(null);
-  const isMountedRef = useRef(true);
-  
-  // Use refs to track current state for syncing on unmount
-  const stateRef = useRef({
-    steps,
-    originalGeneratedSteps,
-    aiInput,
-    executionResults,
-    currentScreenshot,
-    pageState,
-    hasRun,
-    hasModifications,
-    lastSavedWorkflowId,
-  });
-  
-  // Keep refs updated with current state
-  useEffect(() => {
-    stateRef.current = {
-      steps,
-      originalGeneratedSteps,
-      aiInput,
-      executionResults,
-      currentScreenshot,
-      pageState,
-      hasRun,
-      hasModifications,
-      lastSavedWorkflowId,
-    };
-  });
+  const [saveName, setSaveName] = useState('');
+  const [saveDesc, setSaveDesc] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Sync state to context only on unmount (when navigating away)
-  useEffect(() => {
-    return () => {
-      // Sync final state to context when component unmounts
-      const s = stateRef.current;
-      setContextSteps(s.steps);
-      setContextOriginalSteps(s.originalGeneratedSteps);
-      setContextAiInput(s.aiInput);
-      setContextExecutionResults(s.executionResults);
-      setContextScreenshot(s.currentScreenshot);
-      setContextPageState(s.pageState);
-      setContextHasRun(s.hasRun);
-      setContextHasModifications(s.hasModifications);
-      setContextLastSavedId(s.lastSavedWorkflowId);
-    };
-  }, [
-    setContextSteps, setContextOriginalSteps, setContextAiInput, setContextExecutionResults,
-    setContextScreenshot, setContextPageState, setContextHasRun, setContextHasModifications, setContextLastSavedId
-  ]);
+  // ── Screenshot gallery ───────────────────────────────────────────────────
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
 
-  // Initialize browser on mount (headless mode)
+  const cancelRef = useRef<(() => void) | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const queryRef = useRef<HTMLTextAreaElement>(null);
+
+  // Collect screenshots from completed steps
+  const screenshots = steps
+    .filter((s) => s.screenshot)
+    .map((s) => s.screenshot as string);
+
+  // Auto-scroll to bottom during execution
   useEffect(() => {
-    isMountedRef.current = true;
-    
-    // Initialize browser asynchronously without blocking
-    playgroundAPI.initializeBrowser(true).catch((err) => {
-      if (isMountedRef.current) {
-        console.error('Browser initialization failed:', err);
-      }
-    });
-    
-    return () => {
-      // Mark as unmounted first to prevent state updates
-      isMountedRef.current = false;
-      
-      // Clear debounce timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      
-      // Cleanup browser asynchronously - don't wait for it
-      playgroundAPI.cleanupBrowser().catch(() => {
-        // Silently ignore cleanup errors on unmount
-      });
-    };
+    if (phase === 'running' || phase === 'planning') {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [steps, phase, activeStep]);
+
+  // ── Cancel / reset ───────────────────────────────────────────────────────
+  const handleCancel = useCallback(() => {
+    cancelRef.current?.();
+    cancelRef.current = null;
+    setPhase('error');
+    setStateMsg('Cancelled by user');
   }, []);
 
-  // Debounced preview generation as user types
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    if (aiInput.trim().length > 10) {
-      setIsGeneratingPreview(true);
-      debounceTimerRef.current = window.setTimeout(async () => {
-        if (!isMountedRef.current) return;
-        try {
-          const workflow = await playgroundAPI.parseTask(aiInput);
-          if (isMountedRef.current) {
-            setPreviewSteps(workflow.steps);
-          }
-        } catch (error) {
-          if (isMountedRef.current) {
-            console.error('Preview generation failed:', error);
-          }
-        } finally {
-          if (isMountedRef.current) {
-            setIsGeneratingPreview(false);
-          }
-        }
-      }, 1000); // 1 second debounce
-    } else {
-      setPreviewSteps([]);
-      setIsGeneratingPreview(false);
-    }
-    
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [aiInput]);
-
-  const handleGenerateFromAI = async () => {
-    if (!aiInput.trim()) return;
-
-    setIsGenerating(true);
-    
-    // Reset execution state for fresh generation
-    setExecutionResults(new Map());
-    setCurrentStep(-1);
-    setCurrentScreenshot(null);
-    setHasRun(false);
-    
-    try {
-      const workflow = await playgroundAPI.parseTask(aiInput);
-      if (!isMountedRef.current) return;
-      
-      const generatedSteps = workflow.steps.map((step, index) => ({
-        id: `step-${Date.now()}-${index}`,
-        ...step,
-      })) as any[];
-
-      setSteps(generatedSteps);
-      setOriginalGeneratedSteps(JSON.parse(JSON.stringify(generatedSteps))); // Deep copy
-      setHasModifications(false);
-      
-      // Get suggestions based on learning
-      try {
-        const firstNavigate = generatedSteps.find((s: any) => s.type === 'navigate');
-        const url = firstNavigate?.url || '';
-        const suggestionsResult = await playgroundAPI.getSuggestions(aiInput, url);
-        if (isMountedRef.current && suggestionsResult.suggestions && suggestionsResult.suggestions.length > 0) {
-          setSuggestions(suggestionsResult.suggestions);
-          setShowSuggestions(true);
-        }
-      } catch (err) {
-        console.log('No suggestions available:', err);
-      }
-      
-      // Auto-save workflow to database
-      if (isMountedRef.current) {
-        await autoSaveWorkflow(generatedSteps, aiInput);
-      }
-      
-      // Show warnings if any
-      if (workflow.warnings && workflow.warnings.length > 0) {
-        const warningMessage = workflow.warnings.join('\n');
-        console.warn('Workflow warnings:', warningMessage);
-      }
-    } catch (error) {
-      if (!isMountedRef.current) return;
-      console.error('Failed to generate workflow:', error);
-      addNotification({
-        type: 'error',
-        title: 'Generation Failed',
-        message: 'Failed to generate workflow from AI. Please check your description and try again.',
-      });
-    } finally {
-      if (isMountedRef.current) {
-        setIsGenerating(false);
-      }
-    }
-  };
-
-  const autoSaveWorkflow = async (workflowSteps: any[], taskDescription: string) => {
-    setIsAutoSaving(true);
-    try {
-      // Generate smart workflow name from task description
-      const workflowName = generateWorkflowName(taskDescription);
-      const firstNavigateStep = workflowSteps.find(s => s.type === 'navigate');
-      const startUrl = firstNavigateStep?.url || 'https://example.com';
-
-      // Save to database via API
-      const savedWorkflow = await apiClient.createWorkflow({
-        name: workflowName,
-        description: taskDescription,
-        app_name: extractAppName(startUrl),
-        start_url: startUrl,
-      });
-
-      setLastSavedWorkflowId(savedWorkflow.id);
-      
-      // Show success toast
-      showSuccessToast(`Workflow "${workflowName}" saved successfully!`);
-      
-    } catch (error) {
-      console.error('Auto-save failed:', error);
-    } finally {
-      setIsAutoSaving(false);
-    }
-  };
-
-  const generateWorkflowName = (description: string): string => {
-    // Extract key action words
-    const cleanDesc = description.trim().slice(0, 50);
-    const words = cleanDesc.split(' ');
-    
-    // Capitalize first letter of each word
-    const titleCase = words
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-    
-    return titleCase || 'Automated Workflow';
-  };
-
-  const extractAppName = (url: string): string => {
-    try {
-      const hostname = new URL(url).hostname;
-      const parts = hostname.split('.');
-      const domain = parts.length > 2 ? parts[parts.length - 2] : parts[0];
-      return domain.charAt(0).toUpperCase() + domain.slice(1);
-    } catch {
-      return 'Web App';
-    }
-  };
-
-  const showSuccessToast = (message: string) => {
-    // Create a simple toast notification
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-up';
-    toast.innerHTML = `
-      <div class="flex items-center gap-2">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-        </svg>
-        <span>${message}</span>
-      </div>
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => document.body.removeChild(toast), 300);
-    }, 3000);
-  };
-
-  const addStep = (type: WorkflowStep['type']) => {
-    const newStep: any = {
-      id: `step-${Date.now()}`,
-      type,
-      description: `New ${type} action`,
-    };
-
-    setSteps(prevSteps => [...prevSteps, newStep]);
-    setHasModifications(true);
-  };
-
-  const updateStep = useCallback((id: string, updates: Partial<WorkflowStep>) => {
-    console.log('Updating step:', id, 'with:', updates);
-    setSteps(prevSteps => {
-      const newSteps = prevSteps.map((step: any) => 
-        step.id === id ? { ...step, ...updates } : step
-      );
-      console.log('New steps:', newSteps);
-      return newSteps;
-    });
-    setHasModifications(true);
-  }, []);
-
-  const removeStep = useCallback((id: string) => {
-    setSteps(prevSteps => prevSteps.filter((step: any) => step.id !== id));
-    setHasModifications(true);
-  }, []);
-
-  // @dnd-kit sensors for smooth drag experience
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // 8px movement required to activate drag
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Handle drag end event from @dnd-kit - memoized for performance
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setSteps((items) => {
-        const oldIndex = items.findIndex((item: any) => item.id === active.id);
-        const newIndex = items.findIndex((item: any) => item.id === over.id);
-        
-        return arrayMove(items, oldIndex, newIndex);
-      });
-      setHasModifications(true);
-    }
-  }, []);
-
-  const handleRunWorkflow = async () => {
-    if (steps.length === 0) return;
-
-    setIsRunning(true);
-    setHasRun(true); // Mark that we've run the workflow
-    setExecutionResults(new Map());
-    setCurrentStep(0);
-
-    try {
-      // Ensure browser is initialized
-      await playgroundAPI.initializeBrowser(true);
-      if (!isMountedRef.current) return;
-      
-      for (let i = 0; i < steps.length; i++) {
-        if (!isMountedRef.current) return;
-        
-        setCurrentStep(i);
-        
-        const step = steps[i];
-        const result = await playgroundAPI.executeStep(step);
-        if (!isMountedRef.current) return;
-        
-        // Store result
-        setExecutionResults(prev => new Map(prev).set(i, result.result));
-        
-        // Update screenshot
-        if (result.result.screenshot) {
-          setCurrentScreenshot(result.result.screenshot);
-        }
-        
-        // Update page state
-        try {
-          const state = await playgroundAPI.getPageState();
-          if (isMountedRef.current) {
-            setPageState(state);
-          }
-        } catch (err) {
-          console.warn('Could not fetch page state:', err);
-        }
-        
-        // Stop on error
-        if (result.result.status === 'error') {
-          if (isMountedRef.current) {
-            addNotification({
-              type: 'error',
-              title: `Step ${i + 1} Failed`,
-              message: result.result.message || 'An error occurred while executing this step.',
-            });
-          }
-          break;
-        }
-        
-        // Small delay between steps
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    } catch (error) {
-      if (isMountedRef.current) {
-        console.error('Execution failed:', error);
-        addNotification({
-          type: 'error',
-          title: 'Execution Failed',
-          message: `Workflow execution failed: ${error}`,
-        });
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsRunning(false);
-        setCurrentStep(-1);
-      }
-    }
-  };
-
-  const handleExecuteStep = async (index: number) => {
-    const step = steps[index];
-    
-    try {
-      // Ensure browser is initialized
-      await playgroundAPI.initializeBrowser(true);
-      if (!isMountedRef.current) return;
-      
-      setCurrentStep(index);
-      const result = await playgroundAPI.executeStep(step);
-      if (!isMountedRef.current) return;
-      
-      setExecutionResults(prev => new Map(prev).set(index, result.result));
-      
-      if (result.result.screenshot) {
-        setCurrentScreenshot(result.result.screenshot);
-      }
-      
-      try {
-        const state = await playgroundAPI.getPageState();
-        if (isMountedRef.current) {
-          setPageState(state);
-        }
-      } catch (err) {
-        console.warn('Could not fetch page state:', err);
-      }
-      
-    } catch (error) {
-      if (isMountedRef.current) {
-        console.error('Step execution failed:', error);
-        addNotification({
-          type: 'error',
-          title: 'Step Execution Failed',
-          message: `Failed to execute step: ${error}`,
-        });
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setCurrentStep(-1);
-      }
-    }
-  };
-
-  // Soft reset - clears execution state but keeps steps
-  const handleReset = () => {
-    setIsRunning(false);
-    setCurrentStep(-1);
-    setExecutionResults(new Map());
-    setCurrentScreenshot(null);
-    setHasRun(false);
-    setPageState(null);
-  };
-
-  // Hard reset - clears everything for a fresh start
-  const handleClearAll = async () => {
-    setShowClearDialog(false);
-    
-    // Clear local state
+  const handleReset = useCallback(() => {
+    cancelRef.current?.();
+    cancelRef.current = null;
+    setPhase('idle');
     setSteps([]);
-    setOriginalGeneratedSteps([]);
-    setAiInput('');
-    setPreviewSteps([]);
-    setIsRunning(false);
-    setCurrentStep(-1);
-    setExecutionResults(new Map());
-    setCurrentScreenshot(null);
-    setPageState(null);
-    setHasRun(false);
-    setHasModifications(false);
-    setLastSavedWorkflowId(null);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    setFeedbackNotes('');
-    
-    // Also clear context state for full reset
-    clearPlayground();
-    
-    // Optionally cleanup and reinitialize browser
-    try {
-      await playgroundAPI.cleanupBrowser();
-      if (isMountedRef.current) {
-        await playgroundAPI.initializeBrowser(true);
+    setActiveStep(-1);
+    setLiveScreenshot(null);
+    setPlanConfidence(null);
+    setWarnings([]);
+    setRunError(null);
+    setRunSuccess(null);
+  }, []);
+
+  // ── Run automation ───────────────────────────────────────────────────────
+  const handleRun = useCallback(() => {
+    if (!query.trim()) return;
+
+    // Reset state
+    setPhase('planning');
+    setStateMsg('AI is planning your automation…');
+    setSteps([]);
+    setActiveStep(-1);
+    setLiveScreenshot(null);
+    setPlanConfidence(null);
+    setWarnings([]);
+    setRunError(null);
+    setRunSuccess(null);
+
+    const collectedScreenshots: string[] = [];
+    const stepStates: StepState[] = [];
+
+    const cancel = playgroundAPI.runAutomationLive(
+      query.trim(),
+      targetUrl.trim() || undefined,
+      headless,
+      (event: AutomationEvent) => {
+        switch (event.type) {
+          case 'planning_start':
+            setStateMsg(event.message ?? 'Planning…');
+            break;
+
+          case 'planning_complete': {
+            const planned = (event.steps ?? []).map((s) => ({
+              step: s,
+              status: 'pending' as const,
+            }));
+            stepStates.length = 0;
+            stepStates.push(...planned);
+            setSteps([...stepStates]);
+            setPlanConfidence(event.confidence ?? null);
+            setWarnings(event.warnings ?? []);
+            setStateMsg(`Plan ready — ${planned.length} steps`);
+            break;
+          }
+
+          case 'browser_starting':
+            setPhase('browser_starting');
+            setStateMsg(event.message ?? 'Starting browser…');
+            break;
+
+          case 'browser_ready':
+            setPhase('running');
+            setStateMsg('Executing…');
+            break;
+
+          case 'step_start': {
+            const idx = event.step_index ?? 0;
+            setActiveStep(idx);
+            if (stepStates[idx]) {
+              stepStates[idx] = { ...stepStates[idx], status: 'running' };
+              setSteps([...stepStates]);
+            }
+            break;
+          }
+
+          case 'step_complete': {
+            const idx = event.step_index ?? 0;
+            const result = event.result;
+            const screenshot = result?.screenshot ?? undefined;
+            if (screenshot) {
+              collectedScreenshots.push(screenshot);
+              setLiveScreenshot(screenshot);
+            }
+            if (stepStates[idx]) {
+              stepStates[idx] = {
+                ...stepStates[idx],
+                status: result?.status === 'success' ? 'success' : 'error',
+                result,
+                screenshot,
+              };
+              setSteps([...stepStates]);
+            }
+            break;
+          }
+
+          case 'execution_stopped':
+            setStateMsg(`Stopped at step ${(event.step_index ?? 0) + 1}: ${event.reason}`);
+            break;
+
+          case 'execution_complete': {
+            const success = event.success ?? false;
+            setRunSuccess(success);
+            setPhase('complete');
+            setStateMsg(success ? 'Automation completed successfully!' : 'Automation finished with errors.');
+            setActiveStep(-1);
+
+            // Add to history
+            const record: RunRecord = {
+              query: query.trim(),
+              url: targetUrl.trim() || undefined,
+              startedAt: new Date(),
+              steps: [...stepStates],
+              success,
+              screenshots: [...collectedScreenshots],
+            };
+            setHistory((h) => [record, ...h.slice(0, 9)]);
+
+            if (success) {
+              addNotification({ type: 'success', title: 'Automation Complete', message: 'Automation completed successfully!' });
+            } else {
+              addNotification({ type: 'error', title: 'Automation Failed', message: 'Automation finished with errors.' });
+            }
+            break;
+          }
+
+          case 'error':
+            setRunError(event.message ?? 'Unknown error');
+            setPhase('error');
+            setStateMsg(event.message ?? 'An error occurred');
+            addNotification({ type: 'error', title: 'Automation Error', message: event.message ?? 'Automation error' });
+            break;
+
+          case 'ws_closed':
+            if (phase !== 'complete' && phase !== 'error') {
+              setPhase('error');
+              setStateMsg('Connection to backend lost.');
+            }
+            break;
+        }
       }
-    } catch (err) {
-      console.warn('Browser reset warning:', err);
-    }
-  };
+    );
 
-  const handleSaveWorkflow = async () => {
-    if (!workflowName.trim()) {
-      addNotification({
-        type: 'warning',
-        title: 'Missing Name',
-        message: 'Please enter a workflow name before saving.',
-      });
-      return;
-    }
+    cancelRef.current = cancel;
+  }, [query, targetUrl, headless, addNotification, phase]);
 
+  // ── Save workflow ────────────────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
+    if (!saveName.trim()) return;
+    setIsSaving(true);
     try {
-      await playgroundAPI.saveWorkflow(workflowName, workflowDescription, steps);
-      addNotification({
-        type: 'success',
-        title: 'Workflow Saved',
-        message: `"${workflowName}" has been saved successfully!`,
+      await apiClient.createWorkflow({
+        name: saveName.trim(),
+        description: saveDesc.trim() || query.trim(),
+        app_name: new URL(targetUrl || 'https://example.com').hostname,
+        start_url: targetUrl || steps.find((s) => s.step.type === 'navigate')?.step.url || '',
       });
+      addNotification({ type: 'success', title: 'Saved', message: `Workflow "${saveName}" saved!` });
       setShowSaveDialog(false);
-      navigate('/workflows');
-    } catch (error) {
-      console.error('Failed to save workflow:', error);
-      addNotification({
-        type: 'error',
-        title: 'Save Failed',
-        message: 'Failed to save workflow. Please try again.',
-      });
-    }
-  };
-
-  const handleSubmitFeedback = async (feedbackType: 'correction' | 'success' | 'failure') => {
-    if (!aiInput || originalGeneratedSteps.length === 0) {
-      addNotification({
-        type: 'warning',
-        title: 'No Workflow',
-        message: 'No workflow available to provide feedback on.',
-      });
-      return;
-    }
-
-    setIsSubmittingFeedback(true);
-    try {
-      const firstNavigate = steps.find(s => s.type === 'navigate');
-      const url = firstNavigate?.url || pageState?.url || 'https://example.com';
-      
-      const result = await playgroundAPI.submitFeedback(
-        aiInput,
-        originalGeneratedSteps,
-        steps,
-        feedbackType,
-        url,
-        feedbackNotes
-      );
-      
-      addNotification({
-        type: 'success',
-        title: 'Feedback Submitted',
-        message: result.message + ' Thank you for helping improve the AI! 🎉',
-      });
-      setShowFeedbackDialog(false);
-      setFeedbackNotes('');
-      setHasModifications(false);
-      
-    } catch (error) {
-      console.error('Failed to submit feedback:', error);
-      addNotification({
-        type: 'error',
-        title: 'Feedback Failed',
-        message: 'Failed to submit feedback. Please try again.',
-      });
+      setSaveName('');
+      setSaveDesc('');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save workflow';
+      addNotification({ type: 'error', title: 'Save Failed', message: msg });
     } finally {
-      setIsSubmittingFeedback(false);
+      setIsSaving(false);
     }
-  };
+  }, [saveName, saveDesc, steps, query, targetUrl, addNotification]);
+
+  // ── Download report ──────────────────────────────────────────────────────
+  const handleDownload = useCallback(() => {
+    const lines: string[] = [
+      `# Automation Report`,
+      `**Query:** ${query}`,
+      targetUrl ? `**URL:** ${targetUrl}` : '',
+      `**Date:** ${new Date().toLocaleString()}`,
+      `**Result:** ${runSuccess ? '✅ Success' : '❌ Failed'}`,
+      '',
+      '## Steps',
+    ];
+    steps.forEach((s, i) => {
+      lines.push(`### Step ${i + 1}: ${s.step.description}`);
+      lines.push(`- Type: \`${s.step.type}\``);
+      if (s.step.selector) lines.push(`- Selector: \`${s.step.selector}\``);
+      if (s.step.url) lines.push(`- URL: ${s.step.url}`);
+      if (s.step.value) lines.push(`- Value: ${s.step.value}`);
+      lines.push(`- Status: ${s.status}`);
+      if (s.result?.message) lines.push(`- Message: ${s.result.message}`);
+      lines.push('');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `automation-report-${Date.now()}.md`;
+    a.click();
+  }, [query, targetUrl, steps, runSuccess]);
+
+  const isRunning = phase === 'planning' || phase === 'browser_starting' || phase === 'running';
+  const hasResults = steps.length > 0;
+  const completedSteps = steps.filter((s) => s.status === 'success').length;
+  const progress = steps.length > 0 ? (completedSteps / steps.length) * 100 : 0;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden relative bg-[#0a0a0f]">
-      {/* Animated background with mesh gradient - same as landing page */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/50 via-purple-950/30 to-[#0a0a0f]" />
-        
-        {/* Mesh gradient overlay */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))]" />
-        
-        {/* Animated orbs */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[150px] animate-pulse" />
-        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px] animate-pulse" 
-          style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-1/4 left-1/3 w-[350px] h-[350px] bg-blue-500/8 rounded-full blur-[100px] animate-pulse" 
-          style={{ animationDelay: '2s' }} />
-        
-        {/* Subtle dot pattern */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBtLTEgMGExIDEgMCAxIDAgMiAwIDEgMSAwIDEgMCAtMiAwIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDMpIi8+PC9nPjwvc3ZnPg==')] opacity-40" />
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="max-w-6xl mx-auto px-4 py-8">
 
-      {/* Header */}
-      <div className="relative z-30 border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-xl px-6 py-4 shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-              <span className="w-11 h-11 rounded-xl flex items-center justify-center shadow-xl shadow-indigo-500/30" 
-                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
-                <Sparkles className="text-white" size={22} />
-              </span>
-              <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                Workflow Playground
-              </span>
-            </h1>
-            <p className="text-gray-400 text-sm mt-1.5 ml-14">
-              Build, test, and debug automation workflows in real-time
-              {pageState && ` • ${pageState.title || pageState.url}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Clear All button - appears when there are steps */}
-            {steps.length > 0 && (
-              <div className="relative z-40">
-                <button
-                  onClick={() => setShowClearDialog(true)}
-                  disabled={isRunning}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-orange-400 hover:bg-orange-500/10 border border-orange-500/30 hover:border-orange-500/50"
-                  title="Clear all steps and reset playground"
-                >
-                  <Eraser size={18} />
-                  Clear
-                </button>
-                
-                {/* Inline Clear Confirmation Popover */}
-                {showClearDialog && (
-                  <div className="absolute top-full right-0 mt-2 w-72 z-[100] animate-scale-in">
-                    <div className="bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-                      <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 py-2">
-                        <p className="text-white text-sm font-semibold flex items-center gap-2">
-                          <Eraser size={14} />
-                          Clear Workspace?
-                        </p>
-                      </div>
-                      <div className="p-3">
-                        <p className="text-gray-400 text-xs mb-2">
-                          You're about to clear {steps.length} workflow step{steps.length !== 1 ? 's' : ''}
-                        </p>
-                        <p className="text-gray-500 text-xs mb-3">
-                          All steps, AI input, and execution history will be removed.
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setShowClearDialog(false)}
-                            className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={handleClearAll}
-                            className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 transition-colors flex items-center justify-center gap-1"
-                          >
-                            <Eraser size={12} />
-                            Clear All
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {hasModifications && originalGeneratedSteps.length > 0 && (
-              <button
-                onClick={() => setShowFeedbackDialog(true)}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-sm hover:shadow flex items-center gap-2"
-                title="Help AI learn from your corrections"
-              >
-                <Lightbulb size={18} />
-                Feedback
-              </button>
-            )}
-            
-            {/* Reset button - only shows after running */}
-            {hasRun && (
-              <button
-                onClick={handleReset}
-                disabled={isRunning}
-                className="btn-secondary flex items-center gap-2"
-                title="Reset execution state (keep steps)"
-              >
-                <RotateCcw size={18} />
-                Reset
-              </button>
-            )}
-            <button
-              onClick={handleRunWorkflow}
-              disabled={steps.length === 0 || isRunning}
-              className="btn-primary flex items-center gap-2"
-            >
-              {isRunning ? (
-                <>
-                  <Loader size={18} className="animate-spin" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play size={18} />
-                  Run All
-                </>
-              )}
-            </button>
-            {lastSavedWorkflowId && (
-              <button
-                onClick={() => navigate('/workflows')}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-sm hover:shadow flex items-center gap-2"
-              >
-                <ArrowRight size={18} />
-                Go to Workflows
-              </button>
-            )}
-            {isAutoSaving && (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <Loader size={16} className="animate-spin" />
-                Saving...
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content - Full Page Layout */}
-      <div className="relative z-10 flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 80px)' }}>
-        {/* Left Panel - Workflow Builder (50% width - increased) */}
-        <div className="w-1/2 border-r border-white/10 flex flex-col bg-[#0a0a0f]/80 backdrop-blur-xl">
-          {/* AI Input */}
-          <div className="p-5 border-b border-white/10 bg-white/5 flex-shrink-0">
-            <div className="rounded-xl p-4 border border-white/10 bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg shadow-indigo-500/25">
-                    <Sparkles size={18} />
-                  </div>
-                  <h2 className="text-base font-bold text-white">
-                    AI Workflow Generator
-                  </h2>
-                </div>
-                {(isGeneratingPreview || previewSteps.length > 0) && (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    {isGeneratingPreview ? (
-                      <>
-                        <Loader size={12} className="animate-spin" />
-                        <span>Analyzing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Zap size={12} className="text-blue-500" />
-                        <span>{previewSteps.length} steps ready</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              <div className="relative">
-                <textarea
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  placeholder="Describe your automation task in plain English...&#10;&#10;Examples:\n• How do I create a project in Linear?\n• Login to GitHub and search for React repositories\n• Scrape product prices from Amazon\n• Fill out a form on example.com"
-                  className="w-full p-3 pr-4 border border-white/10 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm placeholder:text-gray-500 bg-white/5 text-white"
-                  rows={4}
-                />
-                
-                <div className="flex justify-between items-center mt-3">
-                  <div className="flex gap-2 overflow-x-auto pb-1 max-w-[60%] no-scrollbar">
-                    {['Create project in Linear', 'Login to GitHub', 'Search on Amazon', 'Fill contact form'].map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        onClick={() => setAiInput(suggestion)}
-                        className="text-[10px] px-2 py-1 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:border-indigo-400 hover:text-indigo-400 transition-colors whitespace-nowrap"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <button
-                    onClick={handleGenerateFromAI}
-                    disabled={!aiInput.trim() || isGenerating}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg shadow-indigo-500/25 hover:shadow flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader className="animate-spin" size={12} />
-                        Thinking...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={12} />
-                        Generate
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Automation Playground</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Describe any task in plain English and watch a live browser execute it</p>
             </div>
           </div>
+        </div>
 
-          {/* Action Palette */}
-          <div className="p-4 border-b border-white/10 bg-white/5 flex-shrink-0">
-            <label className="text-base font-bold block mb-3 text-white">
-              Add Action
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {(['navigate', 'click', 'type', 'wait', 'select', 'extract'] as const).map((actionType) => (
+        {/* ── Query Input ─────────────────────────────────────────────────── */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-violet-500" />
+            What do you want to automate?
+          </label>
+
+          <textarea
+            ref={queryRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isRunning) handleRun();
+            }}
+            placeholder="e.g. Go to github.com, search for 'python automation', and take a screenshot of the results"
+            rows={3}
+            disabled={isRunning}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm transition disabled:opacity-50"
+          />
+
+          {/* URL row */}
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => setShowUrlField((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              {showUrlField ? 'Hide URL' : 'Add target URL'}
+              {showUrlField ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          </div>
+
+          {showUrlField && (
+            <div className="mt-2">
+              <input
+                type="url"
+                value={targetUrl}
+                onChange={(e) => setTargetUrl(e.target.value)}
+                placeholder="https://example.com"
+                disabled={isRunning}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm disabled:opacity-50"
+              />
+            </div>
+          )}
+
+          {/* Advanced options */}
+          <div className="mt-3">
+            <button
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+            >
+              {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              Advanced
+            </button>
+            {showAdvanced && (
+              <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={headless}
+                  onChange={(e) => setHeadless(e.target.checked)}
+                  className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-xs text-gray-600 dark:text-gray-400">Run browser headlessly (invisible)</span>
+              </label>
+            )}
+          </div>
+
+          {/* Action bar */}
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <p className="text-xs text-gray-400 hidden sm:block">
+              Tip: press <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">⌘ Enter</kbd> to run
+            </p>
+            <div className="flex items-center gap-2 ml-auto">
+              {hasResults && !isRunning && (
                 <button
-                  key={actionType}
-                  onClick={() => addStep(actionType)}
-                  className="px-4 py-2 text-sm rounded-lg border border-white/10 bg-white/5 hover:bg-indigo-500/20 hover:border-indigo-500/50 transition-all duration-200 text-white capitalize font-medium"
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
                 >
-                  {actionType}
+                  <RotateCcw className="w-4 h-4" />
+                  Reset
+                </button>
+              )}
+              {isRunning ? (
+                <button
+                  onClick={handleCancel}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-sm transition shadow"
+                >
+                  <Square className="w-4 h-4" />
+                  Stop
+                </button>
+              ) : (
+                <button
+                  onClick={handleRun}
+                  disabled={!query.trim()}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold text-sm transition shadow-lg disabled:shadow-none disabled:cursor-not-allowed"
+                >
+                  <Play className="w-4 h-4" />
+                  Run Automation
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Example queries (idle only) ─────────────────────────────────── */}
+        {phase === 'idle' && !hasResults && (
+          <div className="mb-8">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Try an example</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {EXAMPLE_QUERIES.map((ex) => (
+                <button
+                  key={ex.label}
+                  onClick={() => {
+                    setQuery(ex.query);
+                    setTargetUrl(ex.url);
+                    setShowUrlField(true);
+                    queryRef.current?.focus();
+                  }}
+                  className="group text-left p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-violet-400 dark:hover:border-violet-600 hover:shadow-md transition"
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <ArrowRight className="w-3.5 h-3.5 text-violet-500 opacity-0 group-hover:opacity-100 transition" />
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{ex.label}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">{ex.query}</p>
                 </button>
               ))}
             </div>
           </div>
+        )}
 
-          {/* Steps List */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {steps.length > 0 && (
-              <div className="mb-4 p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10">
-                <p className="text-xs font-medium flex items-center gap-2 text-white">
-                  <span className="text-indigo-400">💡</span>
-                  Click any field below to edit it directly. Your changes help the AI learn!
-                </p>
+        {/* ── Status / Progress bar ───────────────────────────────────────── */}
+        {hasResults && (
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                {isRunning && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                {phase === 'complete' && runSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                {phase === 'complete' && !runSuccess && <XCircle className="w-4 h-4 text-red-500" />}
+                {phase === 'error' && <XCircle className="w-4 h-4 text-red-500" />}
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{stateMsg}</span>
               </div>
-            )}
-            {steps.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full py-12">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center mb-6">
-                  <Plus className="text-indigo-400" size={36} />
-                </div>
-                <p className="font-semibold text-lg mb-2 text-white">No steps yet</p>
-                <p className="text-base text-center max-w-xs text-gray-400">
-                  Use AI to generate a workflow or add actions manually from the palette above
-                </p>
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={steps.map((step: any) => step.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-3">
-                    {steps.map((step: any, index) => (
-                      <StepCard
-                        key={step.id}
-                        step={step}
-                        index={index}
-                        isActive={currentStep === index}
-                        isCompleted={executionResults.has(index) && executionResults.get(index)?.status === 'success'}
-                        isError={executionResults.has(index) && executionResults.get(index)?.status === 'error'}
-                        result={executionResults.get(index)}
-                        onUpdate={(updates) => updateStep(step.id, updates)}
-                        onRemove={() => removeStep(step.id)}
-                        onExecute={() => handleExecuteStep(index)}
-                        isRunning={currentStep === index}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
-          </div>
-        </div>
-
-        {/* Right Panel - Live Browser Preview (50% width - reduced) */}
-        <div className="w-1/2 flex flex-col bg-[#0a0a0f]/80 backdrop-blur-xl">
-          <div className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0 bg-white/5">
-            <div>
-              <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-                Live Browser Preview
-                {isRunning && (
-                  <span className="flex h-2 w-2 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
-                )}
-              </h2>
-              <p className="text-sm mt-1 text-gray-400">
-                Real-time browser automation view
-              </p>
+              <span className="text-xs text-gray-400">
+                {completedSteps}/{steps.length} steps
+              </span>
             </div>
-            {pageState && (
-              <div className="flex items-center gap-2 px-2 py-1 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                Connected
+
+            {/* Progress bar */}
+            <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  phase === 'error' ? 'bg-red-500' : phase === 'complete' && runSuccess ? 'bg-emerald-500' : 'bg-blue-500'
+                }`}
+                style={{ width: isRunning ? `${Math.max(progress, 5)}%` : `${progress}%` }}
+              />
+            </div>
+
+            {/* Confidence / warnings */}
+            {planConfidence !== null && (
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-violet-400" />
+                  AI confidence: <strong>{Math.round(planConfidence * 100)}%</strong>
+                </span>
+                {warnings.map((w, i) => (
+                  <span key={i} className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-3 h-3" />
+                    {w}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Error message */}
+            {runError && (
+              <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-xs text-red-600 dark:text-red-400">
+                {runError}
+              </div>
+            )}
+
+            {/* Action buttons after completion */}
+            {(phase === 'complete' || phase === 'error') && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowSaveDialog(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium transition"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Save as Workflow
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-medium transition"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Report
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-medium transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  New Automation
+                </button>
               </div>
             )}
           </div>
-          
-          <div className="flex-1 overflow-hidden p-4 flex flex-col bg-white/5">
-            {/* Browser Window Chrome - Full Height */}
-            <div className="rounded-xl shadow-2xl overflow-hidden border border-white/10 flex flex-col flex-1 bg-[#0a0a0f]">
-              {/* Browser Toolbar */}
-              <div className="border-b border-white/10 p-3 flex items-center gap-4 bg-white/5">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                </div>
-                
-                <div className="flex gap-2 text-gray-400">
-                  <ChevronLeft size={16} />
-                  <ChevronRight size={16} />
-                  <RefreshCw size={16} className={isRunning ? "animate-spin" : ""} />
-                </div>
+        )}
 
-                {/* Address Bar */}
-                <div className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 flex items-center gap-2 text-sm">
-                  <Lock size={12} className="text-green-500" />
-                  <span className="truncate flex-1 font-mono text-xs text-gray-400">
-                    {pageState?.url || 'about:blank'}
-                  </span>
-                </div>
+        {/* ── Main execution view ──────────────────────────────────────────── */}
+        {hasResults && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+            {/* Steps panel */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-400" />
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Execution Steps
+                </h2>
+                <span className="ml-auto text-xs text-gray-400">{steps.length} total</span>
               </div>
-
-              {/* Browser Viewport */}
-              <div className="flex-1 relative overflow-auto bg-[#0a0a0f]">
-                {/* Show live screenshot when running or after run */}
-                {currentScreenshot && hasRun ? (
-                  <div className="relative min-h-full">
-                    <img 
-                      src={`data:image/png;base64,${currentScreenshot}`}
-                      alt="Browser screenshot"
-                      className="w-full h-auto block"
-                    />
-                    {/* Overlay for loading state */}
-                    {isRunning && (
-                      <div className="absolute inset-0 bg-black/5 backdrop-blur-[1px] flex items-center justify-center transition-all duration-300">
-                        <div className="border border-white/10 bg-[#0a0a0f]/95 px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
-                          <Loader className="animate-spin text-indigo-500" size={16} />
-                          <span className="text-white">Executing step {currentStep + 1}...</span>
-                        </div>
+              <div className="divide-y divide-gray-50 dark:divide-gray-800 max-h-[520px] overflow-y-auto">
+                {steps.map((s, i) => (
+                  <div
+                    key={i}
+                    className={`px-5 py-3.5 flex items-start gap-3 transition ${
+                      i === activeStep ? 'bg-blue-50/60 dark:bg-blue-900/10' : ''
+                    }`}
+                  >
+                    <div className="mt-0.5 flex-shrink-0">
+                      <StepIcon status={s.status} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <StepTypeBadge type={s.step.type} />
+                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {s.step.description}
+                        </span>
                       </div>
+                      {s.step.url && (
+                        <p className="text-[10px] text-gray-400 font-mono truncate">{s.step.url}</p>
+                      )}
+                      {s.step.selector && (
+                        <p className="text-[10px] text-gray-400 font-mono truncate">{s.step.selector}</p>
+                      )}
+                      {s.result?.message && s.status === 'error' && (
+                        <p className="text-[10px] text-red-500 mt-0.5 truncate">{s.result.message}</p>
+                      )}
+                    </div>
+                    {s.result?.duration_ms !== undefined && (
+                      <span className="flex-shrink-0 text-[10px] text-gray-400 flex items-center gap-0.5">
+                        <Clock className="w-2.5 h-2.5" />
+                        {(s.result.duration_ms / 1000).toFixed(1)}s
+                      </span>
+                    )}
+                    {s.screenshot && (
+                      <button
+                        onClick={() => {
+                          const idx = screenshots.indexOf(s.screenshot as string);
+                          setGalleryIndex(idx >= 0 ? idx : null);
+                        }}
+                        className="flex-shrink-0 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
-                ) : steps.length > 0 ? (
-                  /* Show generated steps (live-synced with edits) */
-                  <div className="h-full p-6 overflow-y-auto">
-                    <div className="max-w-2xl mx-auto space-y-4">
-                      <div className="text-center mb-6">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/15 text-emerald-400 mb-3">
-                          <Check size={16} />
-                          <span className="text-sm font-medium">Workflow Ready</span>
-                        </div>
-                        <p className="text-sm text-gray-400">
-                          {steps.length} steps configured • Click "Run All" to execute
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        {steps.map((step: any, index) => (
-                          <div
-                            key={step.id}
-                            className={`border rounded-xl p-4 transition-all ${
-                              executionResults.has(index)
-                                ? executionResults.get(index)?.status === 'success' 
-                                  ? 'bg-emerald-500/10 border-emerald-500/30' 
-                                  : 'bg-red-500/10 border-red-500/30'
-                                : 'bg-white/5 border-white/10'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0">
-                                <div 
-                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold"
-                                  style={{
-                                    backgroundColor: executionResults.has(index)
-                                      ? executionResults.get(index)?.status === 'success' ? '#10b98130' : '#ef444430'
-                                      : 'rgba(59, 130, 246, 0.2)',
-                                    color: executionResults.has(index)
-                                      ? executionResults.get(index)?.status === 'success' ? '#10b981' : '#ef4444'
-                                      : '#3b82f6'
-                                  }}
-                                >
-                                  {executionResults.has(index) ? (
-                                    executionResults.get(index)?.status === 'success' ? <Check size={16} /> : <X size={16} />
-                                  ) : (
-                                    index + 1
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex-1 space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
-                                    {step.type}
-                                  </span>
-                                  {currentStep === index && isRunning && (
-                                    <Loader size={12} className="animate-spin text-indigo-500" />
-                                  )}
-                                </div>
-                                <p className="text-sm font-medium text-white">
-                                  {step.description || `${step.type} action`}
-                                </p>
-                                {step.url && (
-                                  <p className="text-xs font-mono truncate text-gray-400">
-                                    📍 {step.url}
-                                  </p>
-                                )}
-                                {step.selector && (
-                                  <p className="text-xs font-mono truncate text-gray-400">
-                                    🎯 {step.selector}
-                                  </p>
-                                )}
-                                {step.value && (
-                                  <p className="text-xs font-mono truncate text-gray-400">
-                                    ✏️ "{step.value}"
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {!hasRun && (
-                        <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-indigo-500/10 border border-emerald-500/20">
-                          <p className="text-sm font-medium mb-2 flex items-center gap-2 text-white">
-                            <Play size={16} className="text-emerald-400" />
-                            Ready to run!
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            Edit any step on the left panel - changes sync here instantly. Click "Run All" to start automation.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : previewSteps.length > 0 || isGeneratingPreview ? (
-                  /* Show AI preview while typing */
-                  <div className="h-full p-6 overflow-y-auto">
-                    <div className="max-w-2xl mx-auto space-y-4">
-                      <div className="text-center mb-6">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/15 text-indigo-400 mb-3">
-                          <Zap size={16} />
-                          <span className="text-sm font-medium">Workflow Preview</span>
-                        </div>
-                        <p className="text-sm text-gray-400">
-                          {isGeneratingPreview ? 'Analyzing your task...' : `${previewSteps.length} automated steps`}
-                        </p>
-                      </div>
-                      
-                      {isGeneratingPreview ? (
-                        <div className="flex flex-col items-center justify-center py-12">
-                          <Loader className="animate-spin text-indigo-500 mb-4" size={32} />
-                          <p className="text-sm text-gray-400">
-                            Generating workflow steps...
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {previewSteps.map((step, index) => (
-                            <div
-                              key={index}
-                              className="border border-white/10 bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all animate-fade-in-up"
-                              style={{ animationDelay: `${index * 50}ms` }}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="flex-shrink-0">
-                                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-semibold">
-                                    {index + 1}
-                                  </div>
-                                </div>
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold uppercase tracking-wide text-indigo-400">
-                                      {step.type}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm font-medium text-white">
-                                    {step.description}
-                                  </p>
-                                  {step.url && (
-                                    <p className="text-xs font-mono truncate text-gray-400">
-                                      {step.url}
-                                    </p>
-                                  )}
-                                  {step.selector && (
-                                    <p className="text-xs font-mono text-gray-400">
-                                      {step.selector}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          
-                          <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
-                            <p className="text-sm font-medium mb-2 text-white">
-                              Ready to automate!
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              Click "Generate" to create this workflow and save it to your Workflows page.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                ))}
+                <div ref={bottomRef} />
+              </div>
+            </div>
+
+            {/* Screenshot panel */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                <Camera className="w-4 h-4 text-gray-400" />
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Live Preview</h2>
+                {screenshots.length > 0 && (
+                  <span className="ml-auto text-xs text-gray-400">{screenshots.length} captured</span>
+                )}
+              </div>
+
+              <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-[300px]">
+                {liveScreenshot ? (
+                  <img
+                    src={`data:image/png;base64,${liveScreenshot}`}
+                    alt="Live browser screenshot"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 object-contain max-h-[460px] shadow"
+                  />
+                ) : isRunning ? (
+                  <div className="flex flex-col items-center gap-3 text-gray-400">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+                    <p className="text-sm">{stateMsg}</p>
                   </div>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-                    <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6 bg-white/5 border border-white/10">
-                      <Globe size={48} strokeWidth={1} className="text-gray-500" />
-                    </div>
-                    <h3 className="text-lg font-medium mb-2 text-white">
-                      Ready to Browse
-                    </h3>
-                    <p className="max-w-xs mx-auto text-sm text-gray-400">
-                      Start typing your task description to see a live preview of the workflow steps.
-                    </p>
+                  <div className="flex flex-col items-center gap-2 text-gray-300 dark:text-gray-700">
+                    <Camera className="w-12 h-12" />
+                    <p className="text-sm">Screenshots will appear here during execution</p>
                   </div>
                 )}
               </div>
-              
-              {/* Status Bar */}
-              <div className="border-t border-white/10 bg-white/5 px-3 py-1 text-xs flex justify-between items-center text-gray-400">
-                <span>{pageState?.title || 'New Tab'}</span>
-                <span>{currentScreenshot ? '1280 x 720' : 'No active session'}</span>
-              </div>
+
+              {/* Screenshot thumbnails */}
+              {screenshots.length > 1 && (
+                <div className="px-4 pb-4 flex gap-2 overflow-x-auto">
+                  {screenshots.map((src, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setGalleryIndex(i)}
+                      className="flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 border-transparent hover:border-violet-400 transition"
+                    >
+                      <img
+                        src={`data:image/png;base64,${src}`}
+                        alt={`Screenshot ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Save Dialog */}
-      {showSaveDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="rounded-2xl border border-white/10 bg-[#0a0a0f] p-6 max-w-md w-full mx-4 shadow-2xl">
-            <h2 className="text-xl font-bold mb-4 text-white">Save Workflow</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-white">
-                  Workflow Name *
-                </label>
-                <input
-                  type="text"
-                  value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
-                  placeholder="My Automation Workflow"
-                  className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2 text-white">
-                  Description
-                </label>
-                <textarea
-                  value={workflowDescription}
-                  onChange={(e) => setWorkflowDescription(e.target.value)}
-                  placeholder="Describe what this workflow does..."
-                  className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowSaveDialog(false)}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveWorkflow}
-                  className="btn-primary flex-1"
-                >
-                  Save Workflow
-                </button>
-              </div>
+        {/* ── Session history ──────────────────────────────────────────────── */}
+        {history.length > 0 && phase === 'idle' && (
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent Runs</h2>
             </div>
-          </div>
-        </div>
-      )}
+            <div className="divide-y divide-gray-50 dark:divide-gray-800">
+              {history.map((run, i) => (
+                <div key={i}>
+                  <button
+                    onClick={() => setExpandedHistory(expandedHistory === i ? null : i)}
+                    className="w-full px-5 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition text-left"
+                  >
+                    {run.success
+                      ? <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      : <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{run.query}</p>
+                      <p className="text-xs text-gray-400">{run.startedAt.toLocaleTimeString()} · {run.steps.length} steps</p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setQuery(run.query);
+                        setTargetUrl(run.url ?? '');
+                        if (run.url) setShowUrlField(true);
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Re-run
+                    </button>
+                    {expandedHistory === i ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  </button>
 
-      {/* Feedback Dialog */}
-      {showFeedbackDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="rounded-2xl border border-white/10 bg-[#0a0a0f] p-6 max-w-lg w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white shadow-lg shadow-purple-500/25">
-                <Lightbulb size={24} />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">Help AI Learn</h2>
-                <p className="text-sm text-gray-400">Your feedback helps improve workflow generation</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="p-4 border border-white/10 rounded-xl bg-white/5">
-                <p className="text-sm mb-2 text-gray-300">You made <span className="font-bold text-purple-400">{steps.length - originalGeneratedSteps.length !== 0 ? Math.abs(steps.length - originalGeneratedSteps.length) : steps.filter((s, i) => JSON.stringify(s) !== JSON.stringify(originalGeneratedSteps[i])).length}</span> changes to the AI-generated workflow</p>
-                <p className="text-xs text-gray-500">By submitting feedback, you help the AI learn correct selectors, timeouts, and step sequences for this website.</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2 text-white">
-                  Additional Notes (Optional)
-                </label>
-                <textarea
-                  value={feedbackNotes}
-                  onChange={(e) => setFeedbackNotes(e.target.value)}
-                  placeholder="E.g., 'Amazon needs longer timeouts', 'Search box selector was wrong', etc."
-                  className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowFeedbackDialog(false)}
-                  className="btn-secondary flex-1"
-                  disabled={isSubmittingFeedback}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSubmitFeedback('correction')}
-                  disabled={isSubmittingFeedback}
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isSubmittingFeedback ? (
-                    <>
-                      <Loader size={18} className="animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <ThumbsUp size={18} />
-                      Submit Feedback
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Suggestions Panel */}
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="fixed bottom-4 right-4 w-96 z-40">
-          <div className="border border-white/10 rounded-2xl shadow-2xl overflow-hidden bg-[#0a0a0f]">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-white">
-                <Lightbulb size={18} />
-                <span className="font-semibold">AI Suggestions</span>
-              </div>
-              <button
-                onClick={() => setShowSuggestions(false)}
-                className="text-white hover:bg-white/20 rounded p-1 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-              <p className="text-sm mb-3 text-gray-400">
-                Based on past user corrections for similar tasks:
-              </p>
-              {suggestions.map((suggestion, index) => (
-                <div
-                  key={index}
-                  className={`p-3 border rounded-xl bg-white/5 ${
-                    suggestion.priority === 'high' ? 'border-red-500/50' : 
-                    suggestion.priority === 'medium' ? 'border-amber-500/50' : 'border-white/10'
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                      suggestion.priority === 'high' ? 'bg-red-500' :
-                      suggestion.priority === 'medium' ? 'bg-yellow-500' :
-                      'bg-indigo-500'
-                    }`} />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-white">
-                        {suggestion.message}
-                      </p>
-                      {suggestion.frequency && (
-                        <p className="text-xs mt-1 text-gray-400">
-                          Learned from {suggestion.frequency} correction{suggestion.frequency > 1 ? 's' : ''}
-                        </p>
+                  {expandedHistory === i && (
+                    <div className="px-5 pb-4 bg-gray-50/50 dark:bg-gray-800/30">
+                      {run.screenshots.length > 0 && (
+                        <div className="flex gap-2 pt-3 overflow-x-auto pb-2">
+                          {run.screenshots.map((src, j) => (
+                            <img
+                              key={j}
+                              src={`data:image/png;base64,${src}`}
+                              alt={`Run ${i} screenshot ${j + 1}`}
+                              className="h-20 rounded-lg border border-gray-200 dark:border-gray-700 object-cover"
+                            />
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* ── Screenshot lightbox ─────────────────────────────────────────────── */}
+      {galleryIndex !== null && screenshots[galleryIndex] && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setGalleryIndex(null)}
+        >
+          <div className="relative max-w-5xl max-h-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={`data:image/png;base64,${screenshots[galleryIndex]}`}
+              alt="Screenshot"
+              className="max-h-[90vh] max-w-full rounded-xl shadow-2xl"
+            />
+            <div className="absolute top-3 right-3 flex gap-2">
+              {galleryIndex > 0 && (
+                <button
+                  onClick={() => setGalleryIndex((n) => (n ?? 0) - 1)}
+                  className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg transition"
+                >
+                  ←
+                </button>
+              )}
+              {galleryIndex < screenshots.length - 1 && (
+                <button
+                  onClick={() => setGalleryIndex((n) => (n ?? 0) + 1)}
+                  className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg transition"
+                >
+                  →
+                </button>
+              )}
+              <button
+                onClick={() => setGalleryIndex(null)}
+                className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg transition"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-center text-white/60 text-xs mt-2">
+              Screenshot {galleryIndex + 1} of {screenshots.length}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Save workflow dialog ─────────────────────────────────────────────── */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowSaveDialog(false)}>
+          <div
+            className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Save as Workflow</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="My automation workflow"
+                  autoFocus
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={saveDesc}
+                  onChange={(e) => setSaveDesc(e.target.value)}
+                  placeholder={query}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowSaveDialog(false)}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!saveName.trim() || isSaving}
+                className="px-5 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition flex items-center gap-2"
+              >
+                {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
-
-// Step Card Component
-interface StepCardProps {
-  step: any;
-  index: number;
-  isActive: boolean;
-  isCompleted: boolean;
-  isError: boolean;
-  result?: StepResult;
-  onUpdate: (updates: Partial<WorkflowStep>) => void;
-  onRemove: () => void;
-  onExecute: () => void;
-  isRunning: boolean;
-}
-
-const StepCard = memo(function StepCard({ step, index, isActive, isCompleted, isError, result, onUpdate, onRemove, onExecute, isRunning }: StepCardProps) {
-  // Debug: Log when component renders
-  console.log('StepCard render:', step.id, 'url:', step.url, 'description:', step.description);
-  
-  // Wrapper to ensure onUpdate is called properly
-  const handleUpdate = (updates: Partial<WorkflowStep>) => {
-    console.log('StepCard handleUpdate called with:', updates);
-    onUpdate(updates);
-  };
-
-  // Wrapper for onRemove
-  const handleRemove = () => {
-    console.log('StepCard handleRemove called for step:', step.id);
-    onRemove();
-  };
-
-  // Use @dnd-kit's useSortable hook
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: step.id, disabled: isRunning });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const getStepColor = () => {
-    if (isError) return '#ef4444';
-    if (isCompleted) return '#10b981';
-    if (isActive) return '#6366f1';
-    return '#9ca3af';
-  };
-
-  const getStepBg = () => {
-    if (isError) return 'rgba(239, 68, 68, 0.1)';
-    if (isCompleted) return 'rgba(16, 185, 129, 0.1)';
-    if (isActive) return 'rgba(99, 102, 241, 0.1)';
-    return 'rgba(255, 255, 255, 0.05)';
-  };
-
-  const getStatusIcon = () => {
-    if (isRunning) return <Loader size={16} className="animate-spin" style={{ color: getStepColor() }} />;
-    if (isError) return <X size={16} style={{ color: '#ef4444' }} />;
-    if (isCompleted) return <Check size={16} style={{ color: '#10b981' }} />;
-    return null;
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        ...style,
-        backgroundColor: getStepBg(),
-        borderColor: isActive ? '#6366f1' : isError ? '#ef4444' : 'rgba(255,255,255,0.1)',
-        zIndex: isDragging ? 1000 : 'auto',
-      }}
-      className={`border rounded-2xl p-4 hover-glow step-card ${isDragging ? 'shadow-2xl ring-2 ring-indigo-400' : ''}`}
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          
-          <div
-            {...attributes}
-            {...listeners}
-            className={`
-              p-1 rounded-lg transition-all duration-200 
-              ${isRunning ? 'cursor-not-allowed opacity-50' : 'cursor-grab hover:bg-white/10 hover:scale-110 active:cursor-grabbing active:scale-95'}
-              ${isDragging ? 'cursor-grabbing bg-indigo-500/20' : ''}
-            `}
-            title="Drag to reorder"
-            aria-label="Drag handle to reorder step"
-          >
-            <GripVertical 
-              className={isDragging ? 'text-indigo-400' : 'text-gray-400'}
-              size={20}
-            />
-          </div>
-          <div
-            style={{ backgroundColor: getStepColor() + '30', color: getStepColor() }}
-            className="w-8 h-8 rounded-lg flex items-center justify-center font-semibold text-sm"
-          >
-            {index + 1}
-          </div>
-        </div>
-
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span style={{ color: getStepColor() }} className="text-xs font-semibold uppercase tracking-wide">
-                {step.type}
-              </span>
-              {getStatusIcon()}
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onExecute();
-              }}
-              disabled={isRunning}
-              style={{ color: '#0ea5e9' }}
-              className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
-              title="Test this step"
-            >
-              <Eye size={16} />
-            </button>
-          </div>
-
-          
-          {step.type === 'navigate' && (
-            <input
-              type="url"
-              value={step.url ?? ''}
-              onChange={(e) => handleUpdate({ url: e.target.value })}
-              onFocus={(e) => e.target.select()}
-              placeholder="https://example.com"
-              autoComplete="off"
-              readOnly={false}
-              disabled={isRunning}
-              className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
-            />
-          )}
-
-          {(step.type === 'click' || step.type === 'type' || step.type === 'select' || step.type === 'extract') && (
-            <input
-              type="text"
-              value={step.selector ?? ''}
-              onChange={(e) => handleUpdate({ selector: e.target.value })}
-              onFocus={(e) => e.target.select()}
-              placeholder="CSS selector or XPath"
-              autoComplete="off"
-              spellCheck={false}
-              readOnly={false}
-              disabled={isRunning}
-              className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
-            />
-          )}
-
-          {(step.type === 'type' || step.type === 'select') && (
-            <input
-              type="text"
-              value={step.value ?? ''}
-              onChange={(e) => handleUpdate({ value: e.target.value })}
-              onFocus={(e) => e.target.select()}
-              placeholder="Value to enter"
-              autoComplete="off"
-              readOnly={false}
-              disabled={isRunning}
-              className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
-            />
-          )}
-
-          {step.type === 'wait' && (
-            <>
-              {step.selector && (
-                <input
-                  type="text"
-                  value={step.selector ?? ''}
-                  onChange={(e) => handleUpdate({ selector: e.target.value })}
-                  onFocus={(e) => e.target.select()}
-                  placeholder="CSS selector (optional - wait for element)"
-                  autoComplete="off"
-                  spellCheck={false}
-                  readOnly={false}
-                  disabled={isRunning}
-                  className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 mb-2 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
-                />
-              )}
-              <input
-                type="number"
-                value={step.timeout ?? 5000}
-                onChange={(e) => handleUpdate({ timeout: parseInt(e.target.value) || 5000 })}
-                onFocus={(e) => e.target.select()}
-                placeholder="Timeout (ms)"
-                min="100"
-                step="1000"
-                readOnly={false}
-                disabled={isRunning}
-                className="w-full px-3 py-2 border border-white/10 bg-white/5 text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-500"
-              />
-            </>
-          )}
-
-          {/* Description field - always editable */}
-          <input
-            type="text"
-            value={step.description ?? ''}
-            onChange={(e) => handleUpdate({ description: e.target.value })}
-            onFocus={(e) => e.target.select()}
-            placeholder="Add a description..."
-            autoComplete="off"
-            readOnly={false}
-            disabled={isRunning}
-            className="w-full px-3 py-2 border border-white/10 bg-white/5 text-gray-400 rounded-xl text-xs italic focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-400/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-gray-600"
-          />
-
-          {result && (
-            <div className={`p-2 rounded-xl text-xs ${isError ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
-              <p className={`font-medium ${isError ? 'text-red-400' : 'text-emerald-400'}`}>
-                {result.message}
-              </p>
-              {result.duration_ms && (
-                <p className="mt-1 text-gray-400">
-                  Duration: {result.duration_ms}ms
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-       
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!isRunning) {
-              handleRemove();
-            }
-          }}
-          disabled={isRunning}
-          className="p-2 rounded-lg transition-all duration-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-100 hover:scale-110 active:scale-95 group"
-          title="Delete this step"
-          aria-label="Delete step"
-        >
-          <Trash2 
-            size={18} 
-            className="text-red-500 group-hover:text-red-600 transition-colors"
-          />
-        </button>
-      </div>
-    </div>
-  );
-});

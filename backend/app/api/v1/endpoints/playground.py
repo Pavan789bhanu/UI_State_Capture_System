@@ -4,12 +4,10 @@ Playground API endpoints for testing and running workflows
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-import asyncio
 import json
 import base64
 
 from app.services.playground_executor import playground_executor
-from app.services.ai_service import ai_service
 from app.services.workflow_learner import WorkflowLearner
 
 router = APIRouter()

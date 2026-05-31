@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
-from typing import List, Optional
+from typing import List
 
 from app.core.database import get_db
 from app.models.models import Workflow as WorkflowModel, User as UserModel, Execution as ExecutionModel, ExecutionStatus
@@ -11,6 +11,7 @@ from app.services.workflow_executor import execute_workflow
 from app.services.task_queue import task_queue
 from app.core.config import APP_URL_MAPPINGS
 from app.utils.ssrf_protector import SSRFProtector
+from app.core.encryption import encrypt_password
 
 router = APIRouter()
 
@@ -95,7 +96,7 @@ def create_workflow(
         print(f"[WORKFLOW CREATE] Using default email from .env: {settings.LOGIN_EMAIL}")
     if not workflow_data.get('login_password') and settings.LOGIN_PASSWORD:
         workflow_data['login_password'] = settings.LOGIN_PASSWORD
-        print(f"[WORKFLOW CREATE] Using default password from .env")
+        print("[WORKFLOW CREATE] Using default password from .env")
     
     db_workflow = WorkflowModel(
         **workflow_data,
@@ -184,14 +185,18 @@ def update_workflow(
     if not db_workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     
-    # Validate start_url if being updated
     update_data = workflow.dict(exclude_unset=True)
+
     if 'start_url' in update_data and update_data['start_url']:
         ssrf_protector = SSRFProtector()
         is_valid, error_msg = ssrf_protector.validate_url(update_data['start_url'])
         if not is_valid:
             raise HTTPException(status_code=400, detail=f"Invalid start_url: {error_msg}")
-    
+
+    # Encrypt password if being updated
+    if 'login_password' in update_data and update_data['login_password']:
+        update_data['login_password'] = encrypt_password(update_data['login_password'])
+
     for key, value in update_data.items():
         setattr(db_workflow, key, value)
     

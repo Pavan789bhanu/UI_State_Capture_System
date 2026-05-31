@@ -22,24 +22,21 @@ export default function ExecutionsPage() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
 
+  const enabled = isAuthenticated && !authLoading && !!token;
+
   // Save view mode preference
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem('executionViewMode', mode);
   };
-  
-  // Safety check: don't render if not authenticated
-  if (!isAuthenticated || authLoading || !token) {
-    return null;
-  }
-  
+
   const { data: executionsData, refetch, isLoading, isFetching } = useQuery({
     queryKey: ['executions'],
     queryFn: async () => {
       return await apiClient.getExecutions();
     },
-    refetchInterval: 5000, // Poll every 5 seconds for running executions
-    enabled: isAuthenticated && !authLoading,
+    refetchInterval: 5000,
+    enabled,
   });
 
   const deleteMutation = useMutation({
@@ -105,6 +102,9 @@ export default function ExecutionsPage() {
       // Search filter
       if (!searchQuery) return true;
       const query = searchQuery.toLowerCase();
+  if (!enabled) return null;
+
+  if (!enabled) return null;
       return (
         execution.workflow_name?.toLowerCase().includes(query) ||
         execution.status?.toLowerCase().includes(query) ||

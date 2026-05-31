@@ -239,34 +239,22 @@ class APIClient {
   // ============================================================================
 
   async login(username: string, password: string): Promise<{ access_token: string; token_type: string }> {
-    console.log('[APIClient] 🔐 Attempting login for user:', username);
-    
     const formData = new URLSearchParams();
     formData.append('username', username);
     formData.append('password', password);
 
-    const url = `${this.baseURL}/api/auth/login`;
-    console.log('[APIClient] 📍 Login URL:', url);
-
-    const response = await fetch(url, {
+    const response = await fetch(`${this.baseURL}/api/auth/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: formData,
     });
 
-    console.log('[APIClient] 📥 Login response:', response.status, response.statusText);
-
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText }));
-      console.error('[APIClient] ❌ Login failed:', error.detail);
       throw new Error(error.detail || 'Login failed');
     }
 
-    const data = await response.json();
-    console.log('[APIClient] ✅ Login successful, token received');
-    return data;
+    return response.json();
   }
 
   // ============================================================================

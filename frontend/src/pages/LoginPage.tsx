@@ -8,7 +8,6 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   
   const navigate = useNavigate();
@@ -23,25 +22,15 @@ export function LoginPage() {
       // Use email as username for now
       await login(email || 'admin', password || 'admin123');
       navigate('/dashboard');
-    } catch (err) {
+    } catch {
       setError('Invalid credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleAuth = async () => {
-    setIsGoogleLoading(true);
-    setError('');
-    
-    try {
-      await login('admin', 'admin123');
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Google authentication failed. Please try again.');
-    } finally {
-      setIsGoogleLoading(false);
-    }
+  const handleGoogleAuth = () => {
+    setError('Google sign-in is not configured. Please use email and password.');
   };
 
   return (
@@ -85,15 +74,12 @@ export function LoginPage() {
             {/* Google Auth Button */}
             <button
               onClick={handleGoogleAuth}
-              disabled={isGoogleLoading}
+              disabled={false}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl 
                 border border-slate-200 bg-white hover:bg-slate-50 
                 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isGoogleLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-              ) : (
-                <>
+              <>
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
@@ -113,8 +99,7 @@ export function LoginPage() {
                     />
                   </svg>
                   <span className="text-slate-700 font-medium">Continue with Google</span>
-                </>
-              )}
+              </>
             </button>
 
             {/* Divider */}

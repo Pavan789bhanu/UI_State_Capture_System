@@ -217,7 +217,7 @@ def validate_database(result: ValidationResult):
     print("\n--- Database ---")
     
     try:
-        from app.core.database import engine, Base
+        from app.core.database import engine
         from sqlalchemy import text
         
         # Try to connect

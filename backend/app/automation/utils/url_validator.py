@@ -144,7 +144,7 @@ class URLValidator:
         # Validate proposed URL pattern
         if not self.validate_url_pattern(app_name, proposed_url):
             log(f"⚠ Using proposed URL despite pattern mismatch: {proposed_url}")
-            log(f"  If this fails, check APP_URL_MAPPINGS in config.py")
+            log("  If this fails, check APP_URL_MAPPINGS in config.py")
         
         return proposed_url
     
