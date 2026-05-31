@@ -6,18 +6,14 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function AnalyticsPage() {
   const { isAuthenticated, isLoading: authLoading, token } = useAuth();
-  
-  // Safety check: don't render if not authenticated
-  if (!isAuthenticated || authLoading || !token) {
-    return null;
-  }
-  
+  const enabled = isAuthenticated && !authLoading && !!token;
+
   const { data: overview, refetch: refetchOverview } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: async () => {
       return await apiClient.getAnalyticsOverview();
     },
-    enabled: isAuthenticated && !authLoading,
+    enabled,
   });
 
   const { data: topWorkflows, refetch: refetchTop } = useQuery({
@@ -26,7 +22,7 @@ export default function AnalyticsPage() {
       const result = await apiClient.getTopWorkflows();
       return result.workflows;
     },
-    enabled: isAuthenticated && !authLoading,
+    enabled,
   });
 
   // Listen for real-time updates
@@ -44,6 +40,8 @@ export default function AnalyticsPage() {
       apiClient.off('workflow_created', handleUpdate);
     };
   }, [refetchOverview, refetchTop]);
+
+  if (!enabled) return null;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

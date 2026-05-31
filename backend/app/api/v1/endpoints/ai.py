@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.services.ai_service import ai_service, WorkflowAction, ParsedWorkflow
+from app.services.ai_service import ai_service, ParsedWorkflow
 
 router = APIRouter()
 

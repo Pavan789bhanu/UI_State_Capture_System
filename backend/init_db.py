@@ -5,7 +5,7 @@ Run with: python init_db.py
 """
 import os
 from app.core.database import Base, engine, SessionLocal
-from app.models.models import User, Workflow, Execution
+from app.models.models import User
 from app.core.security import get_password_hash
 
 

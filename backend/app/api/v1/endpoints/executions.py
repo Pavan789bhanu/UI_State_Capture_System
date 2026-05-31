@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -221,32 +221,29 @@ def get_execution(
 @router.delete("/{execution_id}")
 def delete_execution(
     execution_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
 ):
-    """
-    Delete an execution record.
-    """
-    # Get the execution
-    execution = db.query(ExecutionModel).filter(
-        ExecutionModel.id == execution_id
+    execution = db.query(ExecutionModel).join(
+        WorkflowModel, ExecutionModel.workflow_id == WorkflowModel.id
+    ).filter(
+        ExecutionModel.id == execution_id,
+        WorkflowModel.owner_id == current_user.id
     ).first()
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
-    
-    # Delete the execution
+
     db.delete(execution)
     db.commit()
-    
+
     return {"message": "Execution deleted successfully", "id": execution_id}
 
 
 @router.get("/queue/status")
-async def get_queue_status():
-    """
-    Get the status of the concurrent task queue.
-    
-    Returns information about running, queued, and completed tasks.
-    """
+async def get_queue_status(
+    current_user: UserModel = Depends(get_current_user)  # noqa: ARG001
+):
+    """Get the status of the concurrent task queue."""
     return {
         "queue_stats": task_queue.get_stats(),
         "all_tasks": task_queue.get_all_tasks()
@@ -256,7 +253,8 @@ async def get_queue_status():
 @router.post("/{execution_id}/cancel")
 async def cancel_execution(
     execution_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
 ):
     """
     Cancel a running or queued execution.

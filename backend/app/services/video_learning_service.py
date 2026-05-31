@@ -8,13 +8,10 @@ should be executed. It extracts:
 - Success criteria and completion indicators
 """
 
-import os
 import json
 import random
-import base64
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-import asyncio
+from typing import List, Dict, Any
 
 from app.core.config import settings
 

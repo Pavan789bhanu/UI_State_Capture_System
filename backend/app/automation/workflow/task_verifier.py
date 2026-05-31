@@ -11,7 +11,7 @@ Key Principles:
 4. Detailed reasoning for the verdict
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from dataclasses import dataclass
 from app.automation.utils.logger import log
 
@@ -192,7 +192,7 @@ class GenericTaskVerifier:
             signals["error_indicators"].append("Workflow ended on same page as start (no progress)")
         
         # Analyze action sequence
-        action_sequence = " -> ".join(signals["actions_performed"])
+        " -> ".join(signals["actions_performed"])
         
         # For creation tasks, check if we actually created something
         if task_analysis["type"] == "creation":
@@ -245,7 +245,7 @@ class GenericTaskVerifier:
             reasons.append(f"✓ Navigated through {signals['navigation_depth']} pages (shows progress)")
         elif signals["navigation_depth"] == 1:
             score += 5
-            reasons.append(f"⚠ Only 1 page visited (limited progress)")
+            reasons.append("⚠ Only 1 page visited (limited progress)")
         else:
             reasons.append("✗ No navigation occurred (stayed on same page)")
         
@@ -300,13 +300,13 @@ class GenericTaskVerifier:
         # 3. Multiple success indicators present
         # 4. No critical error indicators
         
-        has_navigation = signals["navigation_depth"] >= 1  # At least 1 page change
+        signals["navigation_depth"] >= 1  # At least 1 page change
         has_url_change = final_url != initial_url
         has_expected_type = "type" not in task_analysis["expected_actions"] or "TYPE" in signals["actions_performed"]
         has_expected_click = "click" not in task_analysis["expected_actions"] or "CLICK" in signals["actions_performed"]
         has_success_indicators = len(signals["success_indicators"]) >= 1
         has_no_critical_errors = len(signals["error_indicators"]) <= 1  # Allow minor errors
-        has_sufficient_interactions = signals["interaction_count"] >= 2
+        signals["interaction_count"] >= 2
         
         # Check if LLM indicated completion
         llm_indicated_done = any(
@@ -407,7 +407,7 @@ class GenericTaskVerifier:
         log(f"  - Error signals: {len(result.evidence['error_indicators'])}")
         
         if result.evidence.get('url_changes'):
-            log(f"\n  URL Progression:")
+            log("\n  URL Progression:")
             for i, url in enumerate(result.evidence['url_changes'][:5], 1):
                 log(f"    {i}. {url}")
         

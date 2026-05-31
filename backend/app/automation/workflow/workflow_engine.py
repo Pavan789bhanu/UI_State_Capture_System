@@ -376,7 +376,7 @@ class WorkflowEngine:
                                         pwd_input = page.locator(sel)
                                         if await pwd_input.count() > 0:
                                             await pwd_input.first.fill(self.auth.password)
-                                            log(f"✓ Filled Google OAuth password")
+                                            log("✓ Filled Google OAuth password")
                                             await asyncio.sleep(1)
                                             
                                             # Click Sign in / Next button
@@ -452,7 +452,7 @@ class WorkflowEngine:
                                     pwd_input = page.locator(sel)
                                     if await pwd_input.count() > 0 and await pwd_input.first.is_visible():
                                         await pwd_input.first.fill(self.auth.password)
-                                        log(f"✓ Auto-filled password")
+                                        log("✓ Auto-filled password")
                                         password_found = True
                                         await asyncio.sleep(0.5)
                                         break
@@ -574,7 +574,7 @@ class WorkflowEngine:
                     
                     # CRITICAL: Handle "done" action - LLM thinks task is complete
                     if action_type == "done":
-                        log(f"✓ LLM indicates task is COMPLETE")
+                        log("✓ LLM indicates task is COMPLETE")
                         log(f"   Reason: {action.get('reason', 'No reason provided')}")
                         if step_counter < total_steps:
                             log(f"   Note: Plan had {total_steps - step_counter} steps remaining, but LLM sees completion")
@@ -594,7 +594,7 @@ class WorkflowEngine:
                     
                     # CRITICAL: Handle "back" action - LLM wants to backtrack
                     if action_type == "back":
-                        log(f"⬅️  LLM suggests BACKTRACKING")
+                        log("⬅️  LLM suggests BACKTRACKING")
                         log(f"   Reason: {action.get('reason', 'Stuck or wrong path')}")
                         log(f"   Current URL: {page.url}")
                         
@@ -632,7 +632,7 @@ class WorkflowEngine:
                             continue
                         except Exception as back_err:
                             log(f"   ⚠️ Backtrack failed: {back_err}")
-                            log(f"   Will try to proceed forward instead")
+                            log("   Will try to proceed forward instead")
                     
                     # Execute the action, with better error handling
 
@@ -769,7 +769,7 @@ class WorkflowEngine:
                         except Exception as e:
                             # If it's a CAPTCHA detection, propagate the error to stop execution
                             if "CAPTCHA" in str(e) or "verify" in str(e).lower():
-                                log(f"❌ CAPTCHA DETECTED - Stopping workflow execution")
+                                log("❌ CAPTCHA DETECTED - Stopping workflow execution")
                                 raise e  # Re-raise to stop the workflow
                             else:
                                 log(f"Verification checkbox check failed (non-critical): {e}")
@@ -818,14 +818,14 @@ class WorkflowEngine:
                     log(f"PAGE STATE: Overall: {'✓ CHANGED' if page_changed else '✗ NO CHANGE'}")
                     
                     if action_executed and not page_changed and action_type == "click":
-                        log(f"⚠️ WARNING: Action executed but page didn't change!")
+                        log("⚠️ WARNING: Action executed but page didn't change!")
                         log(f"⚠️ Clicked '{target_text or selector}' but no visible effect detected")
                         # Mark as failed since it had no effect
                         action_executed = False
                     elif action_executed and page_changed:
-                        log(f"✓ SUCCESS: Action had visible effect on page state")
+                        log("✓ SUCCESS: Action had visible effect on page state")
                     elif action_executed and action_type == "type":
-                        log(f"✓ Type action completed (page change not required)")
+                        log("✓ Type action completed (page change not required)")
                         # Type actions don't always change page state immediately
                     
                     # Record action for learning system
@@ -899,7 +899,7 @@ Be honest - if truly stuck, quit gracefully."""
                     
                     # Log failure - loop detection will handle retries
                     if not action_executed:
-                        log(f"WARNING: Action failed - loop detection will handle if this becomes a pattern")
+                        log("WARNING: Action failed - loop detection will handle if this becomes a pattern")
                     
                     if not action_executed and action_type == "click" and not selector and target_text:
                         log(f"Failed to execute click action for: {target_text}, continuing to next step")
@@ -1162,27 +1162,27 @@ Type 'continue' to persist or 'done' to quit gracefully."""
         # Update task completion based on verification
         if verification_result.status == "success":
             task_completed = True
-            log(f"\n✅ TASK COMPLETED SUCCESSFULLY (100% verified)")
-            log(f"   All completion criteria met:")
-            log(f"   ✓ Workflow progression verified")
-            log(f"   ✓ All required actions performed")
-            log(f"   ✓ Success indicators detected")
-            log(f"   ✓ No errors found")
+            log("\n✅ TASK COMPLETED SUCCESSFULLY (100% verified)")
+            log("   All completion criteria met:")
+            log("   ✓ Workflow progression verified")
+            log("   ✓ All required actions performed")
+            log("   ✓ Success indicators detected")
+            log("   ✓ No errors found")
         elif verification_result.status == "partial":
             task_completed = False
             any_partial = True
-            log(f"\n⚠️  TASK PARTIALLY COMPLETED")
-            log(f"   Some steps completed but task not 100% complete")
+            log("\n⚠️  TASK PARTIALLY COMPLETED")
+            log("   Some steps completed but task not 100% complete")
             log(f"   Evidence score: {verification_result.completion_percentage}%")
-            log(f"   Top reasons:")
+            log("   Top reasons:")
             for reason in verification_result.reasons[:3]:
                 log(f"     {reason}")
         else:
             task_completed = False
-            log(f"\n❌ TASK FAILED")
-            log(f"   Task did not complete successfully")
+            log("\n❌ TASK FAILED")
+            log("   Task did not complete successfully")
             log(f"   Evidence score: {verification_result.completion_percentage}%")
-            log(f"   Top reasons:")
+            log("   Top reasons:")
             for reason in verification_result.reasons[:3]:
                 log(f"     {reason}")
         
@@ -1452,7 +1452,6 @@ Type 'continue' to persist or 'done' to quit gracefully."""
             ]
             
             signin_button = None
-            used_selector = None
             
             for selector in signin_selectors:
                 try:
@@ -1461,7 +1460,6 @@ Type 'continue' to persist or 'done' to quit gracefully."""
                         # Get visible buttons only
                         if await locator.first.is_visible():
                             signin_button = locator.first
-                            used_selector = selector
                             log(f"✓ Found sign-in button: {selector}")
                             break
                 except Exception:

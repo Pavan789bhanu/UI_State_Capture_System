@@ -321,8 +321,9 @@ export default function PlaygroundPage() {
       setShowSaveDialog(false);
       setSaveName('');
       setSaveDesc('');
-    } catch (err: any) {
-      addNotification({ type: 'error', title: 'Save Failed', message: err.message ?? 'Failed to save workflow' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save workflow';
+      addNotification({ type: 'error', title: 'Save Failed', message: msg });
     } finally {
       setIsSaving(false);
     }

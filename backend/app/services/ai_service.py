@@ -422,7 +422,7 @@ class AIService:
         Returns:
             App name mentioned by user or derived from URL
         """
-        description_lower = description.lower()
+        description.lower()
         
         # Try to extract app name explicitly mentioned in description
         # Look for capitalized words after prepositions (indicates proper nouns)
@@ -1278,7 +1278,7 @@ Respond ONLY with valid JSON matching this schema:
                 type="type",
                 selector="input[type='search'], input[name='q'], [role='searchbox']",
                 value=search_query,
-                description=f"Enter search query"
+                description="Enter search query"
             ),
             WorkflowAction(
                 type="click",

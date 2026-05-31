@@ -1,8 +1,6 @@
 """Workflow execution service that bridges API to automation engine."""
 
-import asyncio
 import json
-from typing import Dict, Any
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
@@ -12,7 +10,6 @@ from app.automation.agent.vision_agent import VisionAgent
 from app.automation.agent.planner_agent import PlannerAgent
 from app.automation.browser.auth_manager import AuthManager
 from app.services.websocket_manager import manager
-from app.services.task_queue import task_queue
 from app.models.models import Execution, Workflow, ExecutionStatus
 from app.core.database import SessionLocal
 from app.core.config import settings, APP_URL_MAPPINGS

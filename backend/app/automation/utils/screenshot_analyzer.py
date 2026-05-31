@@ -8,9 +8,7 @@ This module handles post-execution analysis of captured screenshots:
 
 from __future__ import annotations
 
-import asyncio
 import base64
-import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -72,11 +70,11 @@ class ScreenshotAnalyzer:
                             try:
                                 Path(path).unlink()
                                 duplicates_removed += 1
-                                log(f"  Deleted from disk")
+                                log("  Deleted from disk")
                             except Exception as e:
                                 log(f"  Warning: Could not delete {Path(path).name}: {e}")
                         else:
-                            log(f"  Kept on disk (delete disabled)")
+                            log("  Kept on disk (delete disabled)")
                         break
                 
                 if not is_duplicate:
@@ -274,7 +272,7 @@ Be specific and reference visible UI elements (buttons, forms, text, etc.)."""
                 else:
                     action_desc = "entered text into a field"
             elif action_type == "navigate":
-                action_desc = f"navigated to a new page"
+                action_desc = "navigated to a new page"
             elif action_type == "scroll":
                 action_desc = "scrolled the page"
             elif action_type == "keyboard":

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
-from typing import List
 
 from app.core.database import get_db
 from app.models.models import Workflow, Execution, ExecutionStatus, User

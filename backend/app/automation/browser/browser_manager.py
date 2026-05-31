@@ -361,7 +361,7 @@ class BrowserManager:
                         await self.page.keyboard.press("Backspace")
                         await asyncio.sleep(0.1)
                         await self.page.keyboard.type(value, delay=50)
-                        log(f"✓ Typed with click+type fallback")
+                        log("✓ Typed with click+type fallback")
             elif action_type == "keyboard":
                 if not value:
                     raise ValueError("Keyboard action requires a key value")
@@ -692,14 +692,14 @@ class BrowserManager:
                         pass
                     return True  # Click succeeded and URL changed
                 else:
-                    log(f"⚠ URL did not change, click may not have worked")
+                    log("⚠ URL did not change, click may not have worked")
                     # Give it more time
                     await asyncio.sleep(2)
                     if page.url != current_url:
                         log(f"✓ URL changed after extra wait: {page.url}")
                         return True  # URL changed after waiting
                     else:
-                        log(f"✗ URL still unchanged after 4 seconds - click failed")
+                        log("✗ URL still unchanged after 4 seconds - click failed")
                         return False  # Click failed
             except Exception as wait_err:
                 log(f"Navigation wait error: {wait_err}")
@@ -858,7 +858,7 @@ class BrowserManager:
                             if await close_btn.is_visible(timeout=500):
                                 await close_btn.click(timeout=1000)
                                 dismissed = True
-                                log(f"SUCCESS: Dismissed high-z overlay via close button")
+                                log("SUCCESS: Dismissed high-z overlay via close button")
                                 break
                         except Exception:
                             pass

@@ -25,6 +25,12 @@ export default defineConfig([
         'warn',
         { allowConstantExport: true, allowExportNames: ['useTheme', 'useAuth', 'useNotifications', 'usePlayground'] },
       ],
+      // Downgrade to warn — `any` is sometimes required for dynamic WebSocket/API data
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Disable overly strict purity checks — Date.now() in helper functions is intentional
+      'react-hooks/purity': 'off',
+      // Disable React Compiler memoization rule — this project does not use the React Compiler
+      'react-hooks/preserve-manual-memoization': 'off',
     },
   },
 ])

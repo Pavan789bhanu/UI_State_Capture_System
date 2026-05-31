@@ -4,9 +4,7 @@ This module creates detailed workflow examples from demonstration videos
 to guide the AI in understanding how to execute similar tasks step-by-step.
 """
 
-from typing import Dict, List, Any, Optional
-from pathlib import Path
-import json
+from typing import Dict, List, Any
 
 
 class FewShotExampleGenerator:
@@ -479,7 +477,7 @@ RAG is an AI framework that combines retrieval systems with large language model
         scores = []
         for key, example in self.examples_cache.items():
             score = 0
-            example_text = (example["task"] + " " + example["category"]).lower()
+            (example["task"] + " " + example["category"]).lower()
             
             # Keyword matching
             if "google" in task_lower and "doc" in task_lower:

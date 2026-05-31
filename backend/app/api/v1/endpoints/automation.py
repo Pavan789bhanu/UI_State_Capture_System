@@ -5,9 +5,7 @@ A single English query is all you need:
   POST  /api/automation/run           → plan + execute, return full results
   WS    /api/automation/run-live      → plan + execute, stream progress + screenshots
 """
-import asyncio
 import base64
-import json
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect

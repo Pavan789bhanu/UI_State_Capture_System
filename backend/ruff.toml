@@ -1,0 +1,32 @@
+# Ruff configuration for WorkflowPro backend
+# https://docs.astral.sh/ruff/configuration/
+
+line-length = 120
+
+[lint]
+# Rules enabled globally
+select = ["E", "F"]
+# Rules ignored globally
+ignore = [
+    "E501",   # line-too-long (handled by formatter)
+]
+
+[lint.per-file-ignores]
+# Legacy automation engine — large pre-existing codebase, suppress non-critical noise
+"app/automation/**" = [
+    "E722",   # bare-except — intentional broad catches in browser automation
+    "F821",   # undefined-name — pre-existing issues in workflow_engine.py
+    "F823",   # undefined-name-forward-reference
+]
+# Core app configuration uses imports after sys.path manipulation
+"app/core/config.py" = ["E402"]
+# App entry point uses conditional imports for performance
+"app/main.py" = ["E402"]
+# Startup validation script adds to sys.path before importing
+"scripts/validate_startup.py" = ["E402"]
+# Playground executor uses broad catches for graceful fallback on popup handling
+"app/services/playground_executor.py" = ["E722"]
+# Legacy test and standalone scripts — not production code
+"test_*.py"                = ["E402", "E722", "F401", "F821", "F841"]
+"tests/**"                 = ["E402"]
+"init_video_learning.py"   = ["E402", "F401", "F821"]

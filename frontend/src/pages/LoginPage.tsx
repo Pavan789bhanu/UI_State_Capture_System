@@ -22,7 +22,7 @@ export function LoginPage() {
       // Use email as username for now
       await login(email || 'admin', password || 'admin123');
       navigate('/dashboard');
-    } catch (err) {
+    } catch {
       setError('Invalid credentials. Please try again.');
     } finally {
       setIsLoading(false);

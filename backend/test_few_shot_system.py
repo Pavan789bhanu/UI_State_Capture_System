@@ -106,7 +106,7 @@ async def test_content_generation():
         
         print(f"Generated Title: {content['title']}")
         print(f"Content Length: {len(content['content'])} characters")
-        print(f"Content Preview (first 200 chars):")
+        print("Content Preview (first 200 chars):")
         print(f"  {content['content'][:200]}...")
         print()
 
@@ -154,7 +154,7 @@ async def test_end_to_end_workflow():
     
     # Step 4: Show final form data that would be passed to VisionAgent
     print("Step 4: Final form data for VisionAgent:")
-    print(f"  Fields to fill:")
+    print("  Fields to fill:")
     for key, value in form_data.items():
         if key == "content":
             print(f"    {key}: {len(value)} chars - '{value[:60]}...'")
@@ -197,10 +197,10 @@ async def test_category_patterns():
         
         if patterns:
             print(f"Common Steps: {', '.join(patterns['common_steps'])}")
-            print(f"\nKey Behaviors:")
+            print("\nKey Behaviors:")
             for behavior in patterns['key_behaviors']:
                 print(f"  - {behavior}")
-            print(f"\nSuccess Indicators:")
+            print("\nSuccess Indicators:")
             for indicator in patterns['success_indicators']:
                 print(f"  ✓ {indicator}")
         else:

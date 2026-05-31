@@ -17,8 +17,6 @@ without requiring app-specific customization.
 
 from __future__ import annotations
 
-import os
-import re
 from pathlib import Path
 from typing import Optional
 
@@ -604,7 +602,6 @@ class AuthManager:
             ]
             
             google_button = None
-            used_selector = None
             
             # Try to find Google Sign-In button
             for selector in google_signin_selectors:
@@ -613,7 +610,6 @@ class AuthManager:
                     count = await locator.count()
                     if count > 0:
                         google_button = locator.first
-                        used_selector = selector
                         log(f"✓ Found Google Sign-In button: {selector}")
                         break
                 except Exception:
