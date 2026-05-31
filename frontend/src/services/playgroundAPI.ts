@@ -58,6 +58,39 @@ export interface SelectorValidation {
   message: string;
 }
 
+// ── Automation run-live event types ──────────────────────────────────────────
+
+export type AutomationEventType =
+  | 'planning_start'
+  | 'planning_complete'
+  | 'browser_starting'
+  | 'browser_ready'
+  | 'step_start'
+  | 'step_complete'
+  | 'execution_stopped'
+  | 'execution_complete'
+  | 'error'
+  | 'ws_closed';
+
+export interface AutomationEvent {
+  type: AutomationEventType;
+  message?: string;
+  steps?: WorkflowStep[];
+  confidence?: number;
+  requires_auth?: boolean;
+  warnings?: string[];
+  estimated_duration?: number;
+  step_index?: number;
+  step?: WorkflowStep;
+  result?: StepResult;
+  total_steps?: number;
+  reason?: string;
+  success?: boolean;
+  steps_planned?: number;
+  steps_executed?: number;
+  query?: string;
+}
+
 class PlaygroundAPI {
   private baseUrl: string;
 
@@ -300,6 +333,49 @@ class PlaygroundAPI {
     }
 
     return await response.json();
+  }
+
+  /**
+   * Open a WebSocket to /api/automation/run-live and stream automation events.
+   *
+   * @param query    Plain English task description
+   * @param url      Optional target URL
+   * @param headless Whether to run the browser headlessly
+   * @param onEvent  Callback for every JSON message from the server
+   * @returns        A cancel function — call it to close the WebSocket
+   */
+  runAutomationLive(
+    query: string,
+    url: string | undefined,
+    headless: boolean,
+    onEvent: (event: AutomationEvent) => void
+  ): () => void {
+    const wsBase = (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8000';
+    const wsUrl = `${wsBase}/api/automation/run-live`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ query, url: url ?? null, headless }));
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const event: AutomationEvent = JSON.parse(e.data as string);
+        onEvent(event);
+      } catch {
+        // ignore malformed messages
+      }
+    };
+
+    ws.onerror = () => {
+      onEvent({ type: 'error', message: 'WebSocket connection error' });
+    };
+
+    ws.onclose = () => {
+      onEvent({ type: 'ws_closed' });
+    };
+
+    return () => ws.close();
   }
 }
 

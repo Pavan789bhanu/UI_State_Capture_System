@@ -7,7 +7,7 @@ concurrently without blocking each other.
 
 import asyncio
 from typing import Dict, Optional, Callable, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -29,7 +29,7 @@ class TaskInfo:
         self.args = args
         self.kwargs = kwargs
         self.status = TaskStatus.QUEUED
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.started_at: Optional[datetime] = None
         self.completed_at: Optional[datetime] = None
         self.error: Optional[str] = None
@@ -107,7 +107,7 @@ class ConcurrentTaskQueue:
             async with self.semaphore:
                 # Update status to running
                 task_info.status = TaskStatus.RUNNING
-                task_info.started_at = datetime.utcnow()
+                task_info.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 print(f"[TASK QUEUE] Starting task {task_id}")
                 
                 # Execute the task
@@ -128,13 +128,13 @@ class ConcurrentTaskQueue:
                     print(f"[TASK QUEUE] Task {task_id} failed: {e}")
                     
                 finally:
-                    task_info.completed_at = datetime.utcnow()
+                    task_info.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
                     
         except Exception as e:
             print(f"[TASK QUEUE] Error executing task {task_id}: {e}")
             task_info.status = TaskStatus.FAILED
             task_info.error = str(e)
-            task_info.completed_at = datetime.utcnow()
+            task_info.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     
     def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
         """
@@ -212,7 +212,7 @@ class ConcurrentTaskQueue:
         if task_info.task:
             task_info.task.cancel()
             task_info.status = TaskStatus.CANCELLED
-            task_info.completed_at = datetime.utcnow()
+            task_info.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             print(f"[TASK QUEUE] Cancelled task {task_id}")
             return True
         
@@ -226,7 +226,7 @@ class ConcurrentTaskQueue:
             max_age_seconds: Maximum age in seconds before cleanup
         """
         async with self._cleanup_lock:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             to_remove = []
             
             for task_id, task_info in self.tasks.items():

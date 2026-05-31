@@ -4,7 +4,7 @@ Playground execution service for running workflows in sandbox mode
 import asyncio
 import json
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from playwright.async_api import async_playwright, Browser, Page, TimeoutError as PlaywrightTimeout
 import logging
 
@@ -61,7 +61,7 @@ class PlaygroundExecutor:
             'message': '',
             'screenshot': None,
             'duration_ms': 0,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         }
         
         start_time = datetime.now()

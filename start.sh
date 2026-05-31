@@ -1,97 +1,108 @@
 #!/bin/bash
+# WorkflowPro — Quick Start
+# Starts the FastAPI backend and the Vite frontend dev server.
 
-# UI Capture System - Quick Start Script
-# This script starts both frontend and backend servers
+set -e
 
-echo "🚀 Starting UI Capture System..."
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$ROOT/backend"
+FRONTEND_DIR="$ROOT/frontend"
+
+echo "🚀 Starting WorkflowPro…"
 echo ""
 
-# Check if we're in the right directory
-if [ ! -f "api_server.py" ]; then
-    echo "❌ Error: Please run this script from the project root directory"
-    exit 1
-fi
+# ── Environment setup ──────────────────────────────────────────────────────
 
-# Check if .env file exists
-if [ ! -f ".env" ]; then
-    echo "⚠️  Warning: .env file not found. Creating template..."
-    cat > .env << 'EOF'
-# OpenAI API Key (Required)
-OPENAI_API_KEY=your_openai_api_key_here
+if [ ! -f "$ROOT/.env" ]; then
+  echo "📝 No .env found — creating template at $ROOT/.env"
+  cat > "$ROOT/.env" <<'EOF'
+# Required
+SECRET_KEY=change_me_use_openssl_rand_hex_32
+OPENAI_API_KEY=sk-...
 
-# LLM Model
+# Optional
 LLM_MODEL=gpt-4o
-
-# Directories
-SCREENSHOT_DIR=./captured_dataset
-USER_DATA_DIR=./browser_session_data
-
-# Timeout (milliseconds)
-TIMEOUT=10000
+ENVIRONMENT=development
+DEBUG=true
+DEFAULT_HEADLESS=false
+RATE_LIMIT_PER_MINUTE=60
 EOF
-    echo "✅ Created .env template. Please add your OPENAI_API_KEY"
-    echo ""
+  echo "⚠️  Please edit .env and set SECRET_KEY + OPENAI_API_KEY, then re-run."
+  exit 1
 fi
 
-# Check if frontend .env exists
-if [ ! -f "frontend/.env" ]; then
-    echo "📝 Creating frontend .env file..."
-    cat > frontend/.env << 'EOF'
+if [ ! -f "$FRONTEND_DIR/.env" ]; then
+  echo "📝 Creating frontend/.env"
+  cat > "$FRONTEND_DIR/.env" <<'EOF'
 VITE_API_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8000
 EOF
-    echo "✅ Frontend .env created"
-    echo ""
 fi
 
-# Create data directory
-mkdir -p data
-mkdir -p captured_dataset
-mkdir -p browser_session_data
+# ── Python venv + dependencies ─────────────────────────────────────────────
 
-# Start backend in background
-echo "🔧 Starting Backend API Server..."
-python api_server.py > backend.log 2>&1 &
-BACKEND_PID=$!
-echo "✅ Backend started (PID: $BACKEND_PID) - Logs: backend.log"
-echo "📡 API: http://localhost:8000"
+if [ ! -d "$BACKEND_DIR/venv" ]; then
+  echo "🐍 Creating Python virtual environment…"
+  python3 -m venv "$BACKEND_DIR/venv"
+fi
+
+source "$BACKEND_DIR/venv/bin/activate"
+echo "📦 Installing Python dependencies…"
+pip install -q -r "$BACKEND_DIR/requirements.txt"
+
+echo "🎭 Ensuring Playwright Chromium is installed…"
+playwright install chromium --with-deps 2>/dev/null || playwright install chromium
+
+# ── Database ───────────────────────────────────────────────────────────────
+
+echo "🗄️  Initialising database…"
+cd "$BACKEND_DIR" && python init_db.py
+cd "$ROOT"
+
+# ── Backend ────────────────────────────────────────────────────────────────
+
 echo ""
+echo "🔧 Starting backend (port 8000)…"
+cd "$BACKEND_DIR"
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > "$ROOT/backend.log" 2>&1 &
+BACKEND_PID=$!
+cd "$ROOT"
+echo "   PID $BACKEND_PID  |  Logs: backend.log"
 
-# Wait for backend to start
 sleep 3
 
-# Start frontend
-echo "🎨 Starting Frontend Dev Server..."
-cd frontend
-npm run dev > ../frontend.log 2>&1 &
+# ── Frontend ───────────────────────────────────────────────────────────────
+
+if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+  echo "📦 Installing frontend dependencies…"
+  cd "$FRONTEND_DIR" && npm install && cd "$ROOT"
+fi
+
+echo "🎨 Starting frontend dev server (port 5173)…"
+cd "$FRONTEND_DIR"
+npm run dev > "$ROOT/frontend.log" 2>&1 &
 FRONTEND_PID=$!
-cd ..
-echo "✅ Frontend started (PID: $FRONTEND_PID) - Logs: frontend.log"
-echo "🌐 UI: http://localhost:5176"
-echo ""
+cd "$ROOT"
+echo "   PID $FRONTEND_PID  |  Logs: frontend.log"
 
-# Save PIDs for easy cleanup
-echo $BACKEND_PID > .backend.pid
-echo $FRONTEND_PID > .frontend.pid
+# ── Save PIDs ──────────────────────────────────────────────────────────────
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✨ System is running!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "📋 Quick Links:"
-echo "   Frontend: http://localhost:5176"
-echo "   Backend:  http://localhost:8000"
-echo "   API Docs: http://localhost:8000/docs"
-echo ""
-echo "📊 Check Logs:"
-echo "   Backend:  tail -f backend.log"
-echo "   Frontend: tail -f frontend.log"
-echo ""
-echo "🛑 Stop System:"
-echo "   ./stop.sh"
-echo ""
-echo "Press Ctrl+C to stop both servers..."
+echo $BACKEND_PID  > "$ROOT/.backend.pid"
+echo $FRONTEND_PID > "$ROOT/.frontend.pid"
 
-# Wait for Ctrl+C
-trap "echo ''; echo '🛑 Stopping servers...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; rm -f .backend.pid .frontend.pid; echo '✅ Stopped'; exit 0" INT
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✨  WorkflowPro is running!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "   Frontend  →  http://localhost:5173"
+echo "   Backend   →  http://localhost:8000"
+echo "   API Docs  →  http://localhost:8000/docs"
+echo ""
+echo "Default login: admin@example.com / admin123"
+echo ""
+echo "Logs:  tail -f backend.log frontend.log"
+echo "Stop:  ./stop.sh"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+trap "echo ''; echo '🛑 Stopping…'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; rm -f .backend.pid .frontend.pid; echo '✅ Done'; exit 0" INT
 wait

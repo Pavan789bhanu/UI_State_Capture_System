@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from app.core.database import get_db
@@ -47,7 +47,7 @@ def get_executions(
                 duration = int((execution.completed_at - execution.started_at).total_seconds())
             elif execution.status.value == 'running':
                 from datetime import datetime
-                duration = int((datetime.utcnow() - execution.started_at).total_seconds())
+                duration = int((datetime.now(timezone.utc).replace(tzinfo=None) - execution.started_at).total_seconds())
         
         executions.append({
             'id': execution.id,
@@ -261,21 +261,22 @@ async def cancel_execution(
     """
     Cancel a running or queued execution.
     """
-    # Check if execution exists
-    execution = db.query(ExecutionModel).filter(
-        ExecutionModel.id == execution_id
+    execution = db.query(ExecutionModel).join(
+        WorkflowModel, ExecutionModel.workflow_id == WorkflowModel.id
+    ).filter(
+        ExecutionModel.id == execution_id,
+        WorkflowModel.owner_id == current_user.id
     ).first()
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
-    
-    # Try to cancel the task
+
     task_id = f"execution_{execution_id}"
     cancelled = await task_queue.cancel_task(task_id)
     
     if cancelled:
         # Update execution status
         execution.status = ExecutionStatus.FAILED
-        execution.completed_at = datetime.utcnow()
+        execution.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         execution.error_message = "Execution cancelled by user"
         db.commit()
         

@@ -184,14 +184,18 @@ def update_workflow(
     if not db_workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     
-    # Validate start_url if being updated
     update_data = workflow.dict(exclude_unset=True)
+
     if 'start_url' in update_data and update_data['start_url']:
         ssrf_protector = SSRFProtector()
         is_valid, error_msg = ssrf_protector.validate_url(update_data['start_url'])
         if not is_valid:
             raise HTTPException(status_code=400, detail=f"Invalid start_url: {error_msg}")
-    
+
+    # Encrypt password if being updated
+    if 'login_password' in update_data and update_data['login_password']:
+        update_data['login_password'] = encrypt_password(update_data['login_password'])
+
     for key, value in update_data.items():
         setattr(db_workflow, key, value)
     

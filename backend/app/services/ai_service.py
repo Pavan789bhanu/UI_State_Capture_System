@@ -567,29 +567,105 @@ class AIService:
         context: Optional[Dict[str, Any]] = None
     ) -> ParsedWorkflow:
         """
-        Parse natural language task description into workflow steps
-        
-        Args:
-            description: Natural language task description
-            target_url: Target website URL (optional)
-            context: Additional context (user preferences, etc.)
-            
-        Returns:
-            ParsedWorkflow with steps and metadata
+        Parse natural language task description into workflow steps.
+        Uses OpenAI when an API key is available, falls back to rule-based parsing.
         """
-        # TODO: Integrate with OpenAI/Anthropic API
-        # For now, return a mock implementation
-        
-        prompt = self._build_prompt(description, target_url, context)
-        
-        # This is where you'd call the LLM API
-        # response = await self._call_llm(prompt)
-        # workflow = self._parse_llm_response(response)
-        
-        # Mock implementation for demonstration
-        workflow = self._mock_parse(description, target_url)
-        
-        return workflow
+        if self.api_key:
+            try:
+                return await self._call_openai_parse(description, target_url, context)
+            except Exception as e:
+                print(f"[AI Service] OpenAI call failed: {e}, falling back to rule-based parser")
+
+        return self._mock_parse(description, target_url)
+
+    async def _call_openai_parse(
+        self,
+        description: str,
+        target_url: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> ParsedWorkflow:
+        """Call OpenAI to convert a natural language task into executable workflow steps."""
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=self.api_key)
+
+        system_prompt = """You are an expert browser automation assistant. Convert natural language task descriptions into precise, executable browser automation workflows.
+
+Return ONLY a valid JSON object (no markdown, no extra text) with this exact structure:
+{
+  "steps": [
+    {
+      "type": "navigate",
+      "url": "https://example.com",
+      "selector": null,
+      "value": null,
+      "timeout": 5000,
+      "description": "Navigate to the website"
+    }
+  ],
+  "confidence": 0.85,
+  "estimated_duration": 30,
+  "requires_auth": false,
+  "warnings": []
+}
+
+Step types available:
+- "navigate": Go to a URL. Requires "url" field.
+- "click": Click an element. Requires "selector" field.
+- "type": Type text into an input. Requires "selector" and "value" fields. Clear the field first.
+- "wait": Wait for an element or a duration. Use "selector" for element wait, "timeout" (ms) for time wait.
+- "select": Choose a dropdown option. Requires "selector" and "value".
+- "extract": Extract text content. Requires "selector".
+- "screenshot": Capture a screenshot. No extra fields needed.
+
+Selector best practices:
+- Prefer semantic: [data-testid="..."], [aria-label="..."], input[name="..."]
+- Text-based for buttons: button:has-text("Submit"), a:has-text("Login")
+- Type-based for inputs: input[type="email"], input[type="password"], input[type="search"]
+- Avoid fragile class-based or deeply nested selectors
+
+Workflow best practices:
+- Always start with a navigate step.
+- Add a wait step after navigation to let dynamic content load.
+- After clicking a button that opens a form or modal, add a short wait.
+- Set requires_auth=true when login credentials are needed.
+- Set confidence 0.9+ when the task is very specific, 0.6-0.8 for general tasks.
+- Add warnings for tasks that require credentials, could have side effects, or are ambiguous."""
+
+        user_message = f"Task: {description}"
+        if target_url:
+            user_message += f"\nTarget URL: {target_url}"
+        if context:
+            user_message += f"\nContext: {json.dumps(context, indent=2)}"
+
+        model = os.getenv("LLM_MODEL", self.model)
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.2,
+            max_tokens=2000,
+        )
+
+        result = json.loads(response.choices[0].message.content)
+
+        steps = []
+        for step_data in result.get("steps", []):
+            try:
+                steps.append(WorkflowAction(**step_data))
+            except Exception:
+                pass
+
+        return ParsedWorkflow(
+            steps=steps,
+            confidence=float(result.get("confidence", 0.8)),
+            estimated_duration=int(result.get("estimated_duration", len(steps) * 3)),
+            requires_auth=bool(result.get("requires_auth", False)),
+            warnings=result.get("warnings", []),
+        )
     
     def _build_prompt(
         self, 

@@ -60,4 +60,17 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "1.0.0"}
+
+@app.get("/api/health")
+async def api_health_check():
+    """Health check accessible under the /api prefix (matches frontend expectation)."""
+    from app.core.database import engine
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_status = "healthy"
+    except Exception:
+        db_status = "unavailable"
+    return {"status": "healthy", "version": "1.0.0", "database": db_status}

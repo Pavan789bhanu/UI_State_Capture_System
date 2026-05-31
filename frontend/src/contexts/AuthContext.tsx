@@ -16,19 +16,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored token on mount
-    console.log('[AuthContext] Initializing - checking localStorage...');
     const storedToken = localStorage.getItem('auth_token');
     if (storedToken) {
-      console.log('[AuthContext] ✓ Token found, restoring...', storedToken.substring(0, 20) + '...');
       setToken(storedToken);
       api.setToken(storedToken);
-      console.log('[AuthContext] ✓ Token restored and set in API client');
-    } else {
-      console.log('[AuthContext] ✗ No token found in localStorage');
     }
     setIsLoading(false);
-    console.log('[AuthContext] ✓ Initialization complete, isLoading set to false');
   }, []);
 
   const login = async (username: string, password: string) => {
