@@ -11,7 +11,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, register } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,11 +19,19 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Use email as username for now
-      await login(email || 'admin', password || 'admin123');
+      if (isLogin) {
+        await login(email || 'admin', password || 'admin123');
+      } else {
+        if (!email || !password) {
+          setError('Please enter both email and password.');
+          return;
+        }
+        await register(email, password);
+      }
       navigate('/dashboard');
-    } catch {
-      setError('Invalid credentials. Please try again.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -187,11 +195,13 @@ export function LoginPage() {
           </div>
 
           {/* Demo Credentials - Subtle hint */}
-          <div className="mt-4 text-center">
-            <p className="text-xs text-slate-400">
-              Demo: Leave fields empty and click Sign in
-            </p>
-          </div>
+          {isLogin && (
+            <div className="mt-4 text-center">
+              <p className="text-xs text-slate-400">
+                Demo: Leave fields empty and click Sign in, or use admin@example.com / admin123
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Back to Home */}

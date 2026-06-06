@@ -238,9 +238,9 @@ class APIClient {
   // Authentication APIs
   // ============================================================================
 
-  async login(username: string, password: string): Promise<{ access_token: string; token_type: string }> {
+  async login(email: string, password: string): Promise<{ access_token: string; token_type: string }> {
     const formData = new URLSearchParams();
-    formData.append('username', username);
+    formData.append('username', email);
     formData.append('password', password);
 
     const response = await fetch(`${this.baseURL}/api/auth/login`, {
@@ -255,6 +255,13 @@ class APIClient {
     }
 
     return response.json();
+  }
+
+  async register(email: string, password: string): Promise<{ id: number; email: string; username: string }> {
+    return this.request('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
   }
 
   // ============================================================================
