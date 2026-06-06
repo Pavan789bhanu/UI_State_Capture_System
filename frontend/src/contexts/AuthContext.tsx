@@ -4,7 +4,8 @@ import { api } from '../services/api';
 interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -28,12 +29,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(getInitialToken);
   const isLoading = false; // synchronous initialisation — never in a loading state
 
-  const login = async (username: string, password: string) => {
-    const response = await api.login(username, password);
+  const login = async (email: string, password: string) => {
+    const response = await api.login(email, password);
     const newToken = response.access_token;
     setToken(newToken);
     localStorage.setItem('auth_token', newToken);
     api.setToken(newToken);
+  };
+
+  const register = async (email: string, password: string) => {
+    await api.register(email, password);
+    await login(email, password);
   };
 
   const logout = () => {
@@ -48,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isAuthenticated: !!token,
         login,
+        register,
         logout,
         isLoading,
       }}
