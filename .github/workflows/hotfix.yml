@@ -47,4 +47,7 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx ruff
       - run: ruff check . --ignore E501
-      - run: pytest --tb=short -v || echo "No tests found"
+      - run: pytest --tb=short -v
+        env:
+          SECRET_KEY: test_secret_key_for_ci_must_be_32_chars_long
+          OPENAI_API_KEY: sk-test-key-for-ci-only
