@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     
     # Browser Settings
     TIMEOUT: int = int(os.getenv("TIMEOUT", "10000"))
-    DEFAULT_HEADLESS: bool = os.getenv("DEFAULT_HEADLESS", "false").lower() == "true"
+    DEFAULT_HEADLESS: bool = os.getenv("DEFAULT_HEADLESS", "true").lower() == "true"
     
     # Screenshot Analysis
     SCREENSHOT_DEDUPLICATION_ENABLED: bool = True

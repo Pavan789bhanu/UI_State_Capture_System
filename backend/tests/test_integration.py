@@ -137,6 +137,15 @@ class TestAuthentication:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
     
+    def test_login_with_email_address(self, client, test_user):
+        """Login should accept email as well as username."""
+        response = client.post(
+            "/api/auth/login",
+            data={"username": test_user.email, "password": "testpassword123"},
+        )
+        assert response.status_code == 200
+        assert "access_token" in response.json()
+
     def test_login_invalid_credentials(self, client, test_user):
         """Test login with invalid credentials."""
         response = client.post(

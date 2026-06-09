@@ -99,7 +99,7 @@ async def execute_workflow(execution_id: int, db: Session = None):
         
         # Initialize automation components
         # Set headless=False for development to see browser interactions
-        browser_manager = BrowserManager(headless=False)
+        browser_manager = BrowserManager(headless=settings.DEFAULT_HEADLESS)
         vision_agent = VisionAgent()
         planner_agent = PlannerAgent()
         

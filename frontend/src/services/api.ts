@@ -240,7 +240,7 @@ class APIClient {
 
   async login(email: string, password: string): Promise<{ access_token: string; token_type: string }> {
     const formData = new URLSearchParams();
-    formData.append('username', email);
+    formData.append('username', email.trim());
     formData.append('password', password);
 
     const response = await fetch(`${this.baseURL}/api/auth/login`, {
@@ -251,16 +251,23 @@ class APIClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(error.detail || 'Login failed');
+      const message =
+        typeof error.detail === 'string'
+          ? error.detail
+          : Array.isArray(error.detail)
+            ? error.detail.map((d: { msg?: string }) => d.msg ?? 'Invalid input').join(', ')
+            : 'Login failed';
+      throw new Error(message);
     }
 
     return response.json();
   }
 
   async register(email: string, password: string): Promise<{ id: number; email: string; username: string }> {
+    const username = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || 'user';
     return this.request('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: email.trim(), password, username }),
     });
   }
 

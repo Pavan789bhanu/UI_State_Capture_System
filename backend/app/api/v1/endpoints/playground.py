@@ -23,7 +23,7 @@ class ExecuteStepRequest(BaseModel):
 class ExecuteWorkflowRequest(BaseModel):
     """Request to execute entire workflow"""
     steps: List[Dict[str, Any]] = Field(..., description="Workflow steps")
-    headless: bool = Field(default=False, description="Run in headless mode")
+    headless: bool = Field(default=True, description="Run in headless mode")
 
 
 class ValidateSelectorRequest(BaseModel):

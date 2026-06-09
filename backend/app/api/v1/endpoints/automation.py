@@ -24,7 +24,7 @@ router = APIRouter()
 class RunRequest(BaseModel):
     query: str = Field(..., description="Plain English description of the automation task")
     url: Optional[str] = Field(None, description="Target URL (optional — the AI will infer it from the query when omitted)")
-    headless: bool = Field(default=False, description="Run the browser in headless (invisible) mode")
+    headless: bool = Field(default=True, description="Run the browser in headless (invisible) mode")
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ async def run_automation_live(websocket: WebSocket):
         data = await websocket.receive_json()
         query: str = data.get("query", "").strip()
         url: Optional[str] = data.get("url") or None
-        headless: bool = bool(data.get("headless", False))
+        headless: bool = bool(data.get("headless", True))
 
         if not query:
             await send({"type": "error", "message": "query is required"})

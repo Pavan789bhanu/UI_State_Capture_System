@@ -41,7 +41,7 @@ function NavItem({
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
   const { unreadCount } = useNotifications();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -75,7 +75,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <nav className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-3 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 
               flex items-center justify-center shadow-lg shadow-indigo-500/25
               group-hover:shadow-indigo-500/40 group-hover:scale-105 transition-all duration-300">

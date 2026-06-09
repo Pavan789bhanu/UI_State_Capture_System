@@ -31,6 +31,7 @@ import { playgroundAPI } from '../services/playgroundAPI';
 import type { AutomationEvent, WorkflowStep, StepResult } from '../services/playgroundAPI';
 import { apiClient } from '../services/api';
 import { useNotifications } from '../contexts/NotificationContext';
+import { saveAutomationRun } from '../utils/automationRuns';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -109,7 +110,7 @@ export default function PlaygroundPage() {
   // ── Input state ──────────────────────────────────────────────────────────
   const [query, setQuery] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
-  const [headless, setHeadless] = useState(false);
+  const [headless, setHeadless] = useState(true);
   const [showUrlField, setShowUrlField] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -136,6 +137,11 @@ export default function PlaygroundPage() {
 
   // ── Screenshot gallery ───────────────────────────────────────────────────
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+  const [feedbackNotes, setFeedbackNotes] = useState('');
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  const showDebugBrowser = !headless;
 
   const cancelRef = useRef<(() => void) | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -172,6 +178,8 @@ export default function PlaygroundPage() {
     setWarnings([]);
     setRunError(null);
     setRunSuccess(null);
+    setFeedbackNotes('');
+    setFeedbackSent(false);
   }, []);
 
   // ── Run automation ───────────────────────────────────────────────────────
@@ -191,6 +199,7 @@ export default function PlaygroundPage() {
 
     const collectedScreenshots: string[] = [];
     const stepStates: StepState[] = [];
+    let capturedConfidence: number | null = null;
 
     const cancel = playgroundAPI.runAutomationLive(
       query.trim(),
@@ -211,6 +220,7 @@ export default function PlaygroundPage() {
             stepStates.push(...planned);
             setSteps([...stepStates]);
             setPlanConfidence(event.confidence ?? null);
+            capturedConfidence = event.confidence ?? null;
             setWarnings(event.warnings ?? []);
             setStateMsg(`Plan ready — ${planned.length} steps`);
             break;
@@ -278,6 +288,14 @@ export default function PlaygroundPage() {
             };
             setHistory((h) => [record, ...h.slice(0, 9)]);
 
+            saveAutomationRun({
+              query: query.trim(),
+              url: targetUrl.trim() || undefined,
+              confidence: capturedConfidence,
+              success,
+              stepCount: stepStates.length,
+            });
+
             if (success) {
               addNotification({ type: 'success', title: 'Automation Complete', message: 'Automation completed successfully!' });
             } else {
@@ -328,6 +346,29 @@ export default function PlaygroundPage() {
       setIsSaving(false);
     }
   }, [saveName, saveDesc, steps, query, targetUrl, addNotification]);
+
+  const handleSubmitFeedback = useCallback(async () => {
+    if (!feedbackNotes.trim() || steps.length === 0) return;
+    setIsSubmittingFeedback(true);
+    try {
+      const generatedSteps = steps.map((s) => s.step);
+      await playgroundAPI.submitFeedback(
+        query.trim(),
+        generatedSteps,
+        generatedSteps,
+        runSuccess ? 'success' : 'correction',
+        targetUrl.trim() || 'https://example.com',
+        feedbackNotes.trim()
+      );
+      setFeedbackSent(true);
+      addNotification({ type: 'success', title: 'Feedback saved', message: 'The model will learn from your notes.' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to submit feedback';
+      addNotification({ type: 'error', title: 'Feedback failed', message: msg });
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  }, [feedbackNotes, steps, query, targetUrl, runSuccess, addNotification]);
 
   // ── Download report ──────────────────────────────────────────────────────
   const handleDownload = useCallback(() => {
@@ -434,15 +475,22 @@ export default function PlaygroundPage() {
               Advanced
             </button>
             {showAdvanced && (
-              <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={headless}
-                  onChange={(e) => setHeadless(e.target.checked)}
-                  className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-                />
-                <span className="text-xs text-gray-600 dark:text-gray-400">Run browser headlessly (invisible)</span>
-              </label>
+              <div className="mt-2 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showDebugBrowser}
+                    onChange={(e) => setHeadless(!e.target.checked)}
+                    className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    Open Playwright debug browser (local testing only)
+                  </span>
+                </label>
+                <p className="text-[11px] text-gray-400 pl-6">
+                  Automation runs invisibly by default. Live screenshots stream here in real time — no extra window needed.
+                </p>
+              </div>
             )}
           </div>
 
@@ -559,6 +607,32 @@ export default function PlaygroundPage() {
               </div>
             )}
 
+            {/* Human feedback for model learning */}
+            {(phase === 'complete' || phase === 'error') && !feedbackSent && (
+              <div className="mt-4 p-4 rounded-xl border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-900/10">
+                <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-2">
+                  Help the AI learn — what worked? What should change?
+                </p>
+                <textarea
+                  value={feedbackNotes}
+                  onChange={(e) => setFeedbackNotes(e.target.value)}
+                  placeholder="e.g. Steps 1–3 were perfect. After login, it should click 'New Project' instead of the sidebar."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-violet-200 dark:border-violet-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                />
+                <button
+                  onClick={handleSubmitFeedback}
+                  disabled={!feedbackNotes.trim() || isSubmittingFeedback}
+                  className="mt-2 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition"
+                >
+                  {isSubmittingFeedback ? 'Saving…' : 'Submit feedback'}
+                </button>
+              </div>
+            )}
+            {feedbackSent && (
+              <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">Thanks — your feedback was saved for model learning.</p>
+            )}
+
             {/* Action buttons after completion */}
             {(phase === 'complete' || phase === 'error') && (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -657,6 +731,7 @@ export default function PlaygroundPage() {
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
                 <Camera className="w-4 h-4 text-gray-400" />
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Live Preview</h2>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Real-time</span>
                 {screenshots.length > 0 && (
                   <span className="ml-auto text-xs text-gray-400">{screenshots.length} captured</span>
                 )}
