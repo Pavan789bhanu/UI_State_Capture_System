@@ -109,7 +109,7 @@ async def suggest_next_actions(
         )
         
         return {
-            "suggestions": [s.dict() for s in suggestions],
+            "suggestions": [s.model_dump() for s in suggestions],
             "count": len(suggestions)
         }
         

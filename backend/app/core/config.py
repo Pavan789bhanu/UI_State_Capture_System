@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 import os
 from pathlib import Path
@@ -9,6 +9,11 @@ BACKEND_ROOT = PROJECT_ROOT / "backend"
 
 class Settings(BaseSettings):
     """Application settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(PROJECT_ROOT / ".env"),
+        case_sensitive=True,
+    )
     
     # API Settings
     API_V1_PREFIX: str = "/api/v1"
@@ -92,11 +97,7 @@ class Settings(BaseSettings):
             raise ValueError(
                 "OPENAI_API_KEY environment variable is required for AI automation."
             )
-    
-    
-    class Config:
-        env_file = str(PROJECT_ROOT / ".env")
-        case_sensitive = True
+
 
 # Default app URL mappings
 DEFAULT_APP_URL_MAPPINGS = {

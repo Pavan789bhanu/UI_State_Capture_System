@@ -75,7 +75,7 @@ def create_workflow(
 ):
     
     # Auto-populate start_url from app_name if not provided
-    workflow_data = workflow.dict()
+    workflow_data = workflow.model_dump()
     if not workflow_data.get('start_url') and workflow_data.get('app_name'):
         app_name_lower = workflow_data['app_name'].lower()
         if app_name_lower in APP_URL_MAPPINGS:
@@ -185,7 +185,7 @@ def update_workflow(
     if not db_workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
     
-    update_data = workflow.dict(exclude_unset=True)
+    update_data = workflow.model_dump(exclude_unset=True)
 
     if 'start_url' in update_data and update_data['start_url']:
         ssrf_protector = SSRFProtector()
