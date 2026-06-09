@@ -13,6 +13,7 @@ from app.services.websocket_manager import manager
 from app.models.models import Execution, Workflow, ExecutionStatus
 from app.core.database import SessionLocal
 from app.core.config import settings, APP_URL_MAPPINGS
+from app.core.encryption import resolve_stored_password
 
 
 async def execute_workflow(execution_id: int, db: Session = None):
@@ -105,7 +106,7 @@ async def execute_workflow(execution_id: int, db: Session = None):
         # Initialize auth manager with credentials
         # Priority: workflow credentials > .env credentials
         auth_email = workflow.login_email or settings.LOGIN_EMAIL
-        auth_password = workflow.login_password or settings.LOGIN_PASSWORD
+        auth_password = resolve_stored_password(workflow.login_password) or settings.LOGIN_PASSWORD
         
         auth_manager = None
         if auth_email and auth_password:

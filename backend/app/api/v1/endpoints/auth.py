@@ -1,5 +1,8 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
@@ -11,6 +14,18 @@ from app.schemas.schemas import User, UserCreate, Token
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+def _derive_username(email: str, db: Session) -> str:
+    """Derive a unique username from an email address."""
+    base = re.sub(r"[^a-zA-Z0-9_]", "", email.split("@")[0]) or "user"
+    username = base
+    counter = 1
+    while db.query(UserModel).filter(UserModel.username == username).first():
+        username = f"{base}{counter}"
+        counter += 1
+    return username
+
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -36,7 +51,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
+    username = user.username or _derive_username(user.email, db)
+    db_user = db.query(UserModel).filter(UserModel.username == username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already taken")
     
@@ -44,7 +60,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     hashed_password = get_password_hash(user.password)
     db_user = UserModel(
         email=user.email,
-        username=user.username,
+        username=username,
         hashed_password=hashed_password
     )
     db.add(db_user)
@@ -54,11 +70,14 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(UserModel).filter(UserModel.username == form_data.username).first()
+    identifier = form_data.username
+    user = db.query(UserModel).filter(
+        or_(UserModel.username == identifier, UserModel.email == identifier)
+    ).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

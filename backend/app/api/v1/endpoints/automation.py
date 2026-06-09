@@ -49,10 +49,10 @@ async def run_automation(request: RunRequest):
         await executor.initialize(headless=request.headless)
 
         for i, step in enumerate(parsed.steps):
-            result = await executor.execute_step(step.dict())
+            result = await executor.execute_step(step.model_dump())
             if result.get("screenshot"):
                 result["screenshot"] = base64.b64encode(result["screenshot"]).decode("utf-8")
-            results.append({"step_index": i, "step": step.dict(), "result": result})
+            results.append({"step_index": i, "step": step.model_dump(), "result": result})
             if result["status"] == "error":
                 break
     except Exception as exc:
@@ -124,7 +124,7 @@ async def run_automation_live(websocket: WebSocket):
             await send({"type": "error", "message": f"Planning failed: {exc}"})
             return
 
-        steps = [s.dict() for s in parsed.steps]
+        steps = [s.model_dump() for s in parsed.steps]
 
         await send({
             "type": "planning_complete",

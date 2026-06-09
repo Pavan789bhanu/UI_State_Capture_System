@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional
 from datetime import datetime
 
@@ -7,21 +7,22 @@ class UserBase(BaseModel):
     email: EmailStr
     username: str
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    email: EmailStr
     password: str
+    username: Optional[str] = None
 
 class UserLogin(BaseModel):
     username: str
     password: str
 
 class User(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     is_active: bool
     is_superuser: bool
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
@@ -52,23 +53,19 @@ class WorkflowUpdate(BaseModel):
     status: Optional[str] = None
 
 class Workflow(WorkflowBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     status: str
     owner_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
 class WorkflowResponse(Workflow):
     """Workflow with execution statistics"""
     execution_count: int = 0
     success_count: int = 0
     last_executed: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 # Execution Schemas
 class ExecutionBase(BaseModel):
@@ -78,6 +75,8 @@ class ExecutionCreate(ExecutionBase):
     pass
 
 class Execution(ExecutionBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     status: str
     started_at: Optional[datetime] = None
@@ -86,12 +85,6 @@ class Execution(ExecutionBase):
     result: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 class ExecutionResponse(Execution):
     """Execution with workflow details"""
     workflow_name: str
-
-    class Config:
-        from_attributes = True

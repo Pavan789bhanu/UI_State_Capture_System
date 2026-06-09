@@ -1,4 +1,6 @@
 """Password encryption utilities for secure credential storage."""
+from typing import Optional
+
 from cryptography.fernet import Fernet
 from app.core.config import settings
 import base64
@@ -45,3 +47,14 @@ def decrypt_password(encrypted_password: str) -> str:
     cipher = Fernet(get_encryption_key())
     decrypted = cipher.decrypt(encrypted_password.encode())
     return decrypted.decode()
+
+
+def resolve_stored_password(stored: Optional[str]) -> str:
+    """Return plaintext for automation, handling encrypted and legacy plaintext values."""
+    if not stored:
+        return ""
+    try:
+        return decrypt_password(stored)
+    except Exception:
+        # Legacy workflows may still have plaintext credentials in the database.
+        return stored
