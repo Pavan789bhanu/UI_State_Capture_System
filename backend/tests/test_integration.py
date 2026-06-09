@@ -227,6 +227,21 @@ class TestSSRFProtection:
         assert response.status_code == 400, "Should reject localhost URL"
         assert "Invalid start_url" in response.json()["detail"]
 
+    def test_workflow_auto_populates_start_url_from_app_name(self, client, auth_headers):
+        """Known app names should resolve to default URLs without manual start_url."""
+        response = client.post(
+            "/api/workflows",
+            headers=auth_headers,
+            json={
+                "name": "GitHub Workflow",
+                "description": "Test auto URL mapping",
+                "app_name": "github",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["start_url"] == "https://github.com"
+
 
 class TestPagination:
     """Test pagination from Phase 2."""

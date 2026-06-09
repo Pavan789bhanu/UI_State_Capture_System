@@ -40,4 +40,7 @@ jobs:
         run: ruff check . --ignore E501
 
       - name: Tests (pytest)
-        run: pytest --tb=short -v || echo "No tests found"
+        env:
+          SECRET_KEY: test_secret_key_for_ci_must_be_32_chars_long
+          OPENAI_API_KEY: sk-test-key-for-ci-only
+        run: pytest --tb=short -v
