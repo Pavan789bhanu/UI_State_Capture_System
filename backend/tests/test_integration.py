@@ -12,14 +12,12 @@ from app.main import app
 from app.core.database import Base, get_db
 from app.models.models import User as UserModel
 from app.core.config import settings
-from passlib.context import CryptContext
+from app.core.security import get_password_hash
 
 # Test database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 @pytest.fixture(scope="function")
@@ -55,7 +53,7 @@ def test_user(db):
     user = UserModel(
         email="test@example.com",
         username="testuser",
-        hashed_password=pwd_context.hash("testpassword123"),
+        hashed_password=get_password_hash("testpassword123"),
         is_active=True,
         is_superuser=False
     )
@@ -287,13 +285,13 @@ class TestUserDataIsolation:
         user1 = UserModel(
             email="user1@example.com",
             username="user1",
-            hashed_password=pwd_context.hash("pass123"),
+            hashed_password=get_password_hash("pass123"),
             is_active=True
         )
         user2 = UserModel(
             email="user2@example.com",
             username="user2",
-            hashed_password=pwd_context.hash("pass123"),
+            hashed_password=get_password_hash("pass123"),
             is_active=True
         )
         db.add(user1)
@@ -376,6 +374,23 @@ class TestModularArchitecture:
         is_loop, reason = detector.detect_loop(actions)
         assert is_loop, "Should detect repetitive clicking"
         assert "same element" in reason.lower()
+
+
+class TestHealthEndpoints:
+    """Smoke tests for public health endpoints."""
+
+    def test_root_health(self, client):
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+
+    def test_api_health_includes_database(self, client):
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert data["database"] in ("healthy", "unavailable")
 
 
 class TestConfiguration:

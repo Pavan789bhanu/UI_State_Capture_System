@@ -166,30 +166,42 @@ Output: Structured workflow with 8 executable steps
 - **OpenAI API Key** with GPT-4 Vision access
 
 ### Installation
-### Clone the repository
+
 ```bash
+# Clone the repository
 git clone https://github.com/pavan-kumar-malasani/ui_capture_system.git
 cd ui_capture_system
 ```
 
-### Backend setup
+#### Backend setup
+
+```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium
-
-### Configure environment
-cp .env
-Edit .env with your OpenAI API key
-
-### Initialize database
-python init_db.py
-
-### Frontend setup
 ```
+
+#### Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env with your OpenAI API key and a SECRET_KEY (openssl rand -hex 32)
+```
+
+#### Initialize database
+
+```bash
+python init_db.py
+```
+
+#### Frontend setup
+
+```bash
 cd ../frontend
 npm install
+cp .env.example .env
 ```
 
 ### Running the Application
@@ -218,7 +230,7 @@ npm run dev
 
 Access the application at **http://localhost:5173**
 
-Default credentials: `admin` / `admin123`
+Default credentials: `admin@example.com` / `admin123`
 
 ---
 

@@ -14,8 +14,12 @@ echo ""
 # ── Environment setup ──────────────────────────────────────────────────────
 
 if [ ! -f "$ROOT/.env" ]; then
-  echo "📝 No .env found — creating template at $ROOT/.env"
-  cat > "$ROOT/.env" <<'EOF'
+  if [ -f "$ROOT/.env.example" ]; then
+    echo "📝 No .env found — copying .env.example → .env"
+    cp "$ROOT/.env.example" "$ROOT/.env"
+  else
+    echo "📝 No .env found — creating template at $ROOT/.env"
+    cat > "$ROOT/.env" <<'EOF'
 # Required
 SECRET_KEY=change_me_use_openssl_rand_hex_32
 OPENAI_API_KEY=sk-...
@@ -27,16 +31,22 @@ DEBUG=true
 DEFAULT_HEADLESS=false
 RATE_LIMIT_PER_MINUTE=60
 EOF
+  fi
   echo "⚠️  Please edit .env and set SECRET_KEY + OPENAI_API_KEY, then re-run."
   exit 1
 fi
 
 if [ ! -f "$FRONTEND_DIR/.env" ]; then
-  echo "📝 Creating frontend/.env"
-  cat > "$FRONTEND_DIR/.env" <<'EOF'
+  if [ -f "$FRONTEND_DIR/.env.example" ]; then
+    echo "📝 Creating frontend/.env from .env.example"
+    cp "$FRONTEND_DIR/.env.example" "$FRONTEND_DIR/.env"
+  else
+    echo "📝 Creating frontend/.env"
+    cat > "$FRONTEND_DIR/.env" <<'EOF'
 VITE_API_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8000
 EOF
+  fi
 fi
 
 # ── Python venv + dependencies ─────────────────────────────────────────────
