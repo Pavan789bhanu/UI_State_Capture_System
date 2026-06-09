@@ -15,6 +15,33 @@ from app.core.encryption import encrypt_password
 
 router = APIRouter()
 
+
+def _workflow_to_response(
+    workflow: WorkflowModel,
+    *,
+    execution_count: int = 0,
+    success_count: int = 0,
+    last_executed=None,
+) -> dict:
+    """Serialize a workflow for API responses without exposing stored credentials."""
+    return {
+        "id": workflow.id,
+        "name": workflow.name,
+        "description": workflow.description,
+        "app_name": workflow.app_name,
+        "start_url": workflow.start_url,
+        "login_email": workflow.login_email,
+        "login_password": None,
+        "status": workflow.status.value,
+        "owner_id": workflow.owner_id,
+        "created_at": workflow.created_at,
+        "updated_at": workflow.updated_at,
+        "execution_count": execution_count,
+        "success_count": success_count,
+        "last_executed": last_executed,
+    }
+
+
 @router.get("/", response_model=List[WorkflowResponse])
 def get_workflows(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
@@ -47,23 +74,14 @@ def get_workflows(
     # Build response with stats
     result = []
     for workflow, exec_count, success_count, last_exec in workflows:
-        workflow_dict = {
-            'id': workflow.id,
-            'name': workflow.name,
-            'description': workflow.description,
-            'app_name': workflow.app_name,
-            'start_url': workflow.start_url,
-            'login_email': workflow.login_email,
-            'login_password': workflow.login_password,
-            'status': workflow.status.value,
-            'owner_id': workflow.owner_id,
-            'created_at': workflow.created_at,
-            'updated_at': workflow.updated_at,
-            'execution_count': exec_count or 0,
-            'success_count': success_count or 0,
-            'last_executed': last_exec
-        }
-        result.append(workflow_dict)
+        result.append(
+            _workflow_to_response(
+                workflow,
+                execution_count=exec_count or 0,
+                success_count=success_count or 0,
+                last_executed=last_exec,
+            )
+        )
     
     return result
 
@@ -97,7 +115,10 @@ def create_workflow(
     if not workflow_data.get('login_password') and settings.LOGIN_PASSWORD:
         workflow_data['login_password'] = settings.LOGIN_PASSWORD
         print("[WORKFLOW CREATE] Using default password from .env")
-    
+
+    if workflow_data.get('login_password'):
+        workflow_data['login_password'] = encrypt_password(workflow_data['login_password'])
+
     db_workflow = WorkflowModel(
         **workflow_data,
         owner_id=current_user.id
@@ -106,23 +127,7 @@ def create_workflow(
     db.commit()
     db.refresh(db_workflow)
     
-    # Return with execution stats (all zeros for new workflow)
-    return {
-        'id': db_workflow.id,
-        'name': db_workflow.name,
-        'description': db_workflow.description,
-        'app_name': db_workflow.app_name,
-        'start_url': db_workflow.start_url,
-        'login_email': db_workflow.login_email,
-        'login_password': db_workflow.login_password,
-        'status': db_workflow.status.value,
-        'owner_id': db_workflow.owner_id,
-        'created_at': db_workflow.created_at,
-        'updated_at': db_workflow.updated_at,
-        'execution_count': 0,
-        'success_count': 0,
-        'last_executed': None
-    }
+    return _workflow_to_response(db_workflow)
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
 def get_workflow(
@@ -153,23 +158,13 @@ def get_workflow(
         raise HTTPException(status_code=404, detail="Workflow not found")
     
     workflow, exec_count, success_count, last_exec = result
-    
-    return {
-        'id': workflow.id,
-        'name': workflow.name,
-        'description': workflow.description,
-        'app_name': workflow.app_name,
-        'start_url': workflow.start_url,
-        'login_email': workflow.login_email,
-        'login_password': workflow.login_password,
-        'status': workflow.status.value,
-        'owner_id': workflow.owner_id,
-        'created_at': workflow.created_at,
-        'updated_at': workflow.updated_at,
-        'execution_count': exec_count or 0,
-        'success_count': success_count or 0,
-        'last_executed': last_exec
-    }
+
+    return _workflow_to_response(
+        workflow,
+        execution_count=exec_count or 0,
+        success_count=success_count or 0,
+        last_executed=last_exec,
+    )
 
 @router.put("/{workflow_id}", response_model=Workflow)
 def update_workflow(
@@ -202,7 +197,9 @@ def update_workflow(
     
     db.commit()
     db.refresh(db_workflow)
-    return db_workflow
+    return Workflow.model_validate(db_workflow, from_attributes=True).model_copy(
+        update={"login_password": None}
+    )
 
 @router.delete("/{workflow_id}")
 def delete_workflow(
@@ -211,7 +208,8 @@ def delete_workflow(
     current_user: UserModel = Depends(get_current_user)
 ):
     workflow = db.query(WorkflowModel).filter(
-        WorkflowModel.id == workflow_id
+        WorkflowModel.id == workflow_id,
+        WorkflowModel.owner_id == current_user.id,
     ).first()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
