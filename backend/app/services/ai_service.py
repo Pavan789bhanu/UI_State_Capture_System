@@ -3,7 +3,6 @@ AI Service for natural language processing and workflow generation
 Enhanced with video-based learning from demonstration videos
 """
 import json
-import os
 import re
 from typing import Dict, List, Optional, Any, Tuple
 from pydantic import BaseModel
@@ -123,8 +122,9 @@ class AIService:
     """
     
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-        self.model = os.getenv("AI_MODEL", "gpt-4")
+        # Provider-agnostic: any configured key (OpenAI or Anthropic) enables LLM parsing.
+        from app.core.config import settings
+        self.llm_available = settings.active_llm_provider != "none"
     
     def _infer_app_from_intent(self, description: str) -> Tuple[Optional[str], Optional[str], str]:
         """
@@ -568,26 +568,25 @@ class AIService:
     ) -> ParsedWorkflow:
         """
         Parse natural language task description into workflow steps.
-        Uses OpenAI when an API key is available, falls back to rule-based parsing.
+        Uses the configured LLM provider (OpenAI or Anthropic), falling back
+        to rule-based parsing when no provider is available.
         """
-        if self.api_key:
+        if self.llm_available:
             try:
-                return await self._call_openai_parse(description, target_url, context)
+                return await self._call_llm_parse(description, target_url, context)
             except Exception as e:
-                print(f"[AI Service] OpenAI call failed: {e}, falling back to rule-based parser")
+                print(f"[AI Service] LLM call failed: {e}, falling back to rule-based parser")
 
         return self._mock_parse(description, target_url)
 
-    async def _call_openai_parse(
+    async def _call_llm_parse(
         self,
         description: str,
         target_url: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None
     ) -> ParsedWorkflow:
-        """Call OpenAI to convert a natural language task into executable workflow steps."""
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(api_key=self.api_key)
+        """Call the configured LLM to convert a task into executable workflow steps."""
+        from app.services.llm_client import get_llm_client
 
         system_prompt = """You are an expert browser automation assistant. Convert natural language task descriptions into precise, executable browser automation workflows.
 
@@ -638,19 +637,12 @@ Workflow best practices:
         if context:
             user_message += f"\nContext: {json.dumps(context, indent=2)}"
 
-        model = os.getenv("LLM_MODEL", self.model)
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            response_format={"type": "json_object"},
+        result = await get_llm_client().chat_json(
+            messages=[{"role": "user", "content": user_message}],
+            system=system_prompt,
             temperature=0.2,
             max_tokens=2000,
         )
-
-        result = json.loads(response.choices[0].message.content)
 
         steps = []
         for step_data in result.get("steps", []):
@@ -761,8 +753,6 @@ Respond ONLY with valid JSON matching this schema:
         
         This is the bridge between "user thinks in goals" and "system executes in apps".
         """
-        description_lower = description.lower()
-        
         # Step 1: Decompose intent to identify app and actions
         intent = self._decompose_intent(description)
         
@@ -853,221 +843,7 @@ Respond ONLY with valid JSON matching this schema:
             requires_auth='login' in intent['actions'],
             warnings=warnings
         )
-        
-        # If no URL found, provide helpful guidance
-        if not base_url:
-            base_url = "https://example.com"
-            
-        # Extract app name from query or URL (dynamic, not hardcoded)
-        app_name = self._extract_app_name_generic(description, base_url)
-        
-        # Generate context adaptively
-        project_context = self._generate_generic_context(description)
-        
-        steps = []
-        
-        # Identify user intent from query
-        intent = self._identify_intent(description_lower)
-        
-        # Generate workflow based on INTENT, not specific app
-        if intent == "create_project":
-            # Generic project creation workflow
-            # Uses neutral UI terminology applicable to most modern SaaS apps
-            steps.extend([
-                WorkflowAction(
-                    type="navigate",
-                    url=base_url,
-                    description=f"Navigate to {app_name or 'the application'} dashboard"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    selector="body, [role='main'], main",
-                    timeout=3000,
-                    description="Wait for dashboard to load"
-                ),
-                WorkflowAction(
-                    type="click",
-                    selector="button:has-text('New'), a:has-text('Create'), button:has-text('Add'), [aria-label*='Create'], [aria-label*='New'], [title*='New'], button[class*='create'], button[class*='new']",
-                    description="Click the 'New' or 'Create' button (typically in top navigation or sidebar)"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    timeout=1000,
-                    description="Wait for creation form or modal to appear"
-                ),
-                WorkflowAction(
-                    type="type",
-                    selector="input[name='name'], input[name='title'], input[placeholder*='name' i], input[placeholder*='title' i], input[aria-label*='name' i], input[type='text']:first-of-type",
-                    value=project_context.get('project_name', 'New Project'),
-                    description=f"Enter project name: {project_context.get('project_name', 'New Project')}"
-                ),
-                WorkflowAction(
-                    type="type",
-                    selector="textarea[name='description'], textarea[placeholder*='description' i], textarea[aria-label*='description' i], input[name='description'], [contenteditable='true']",
-                    value=project_context.get('project_description', 'Automated project creation'),
-                    description="Add project description or details"
-                ),
-                WorkflowAction(
-                    type="click",
-                    selector="button[type='submit'], button:has-text('Create'), button:has-text('Save'), button:has-text('Submit'), button:has-text('Add'), [aria-label*='Create'], [aria-label*='Save']",
-                    description="Submit the form by clicking 'Create' or 'Save' button"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    timeout=2000,
-                    description="Wait for project to be created and confirmation"
-                )
-            ])
-                
-        elif intent == "login":
-            # Generic authentication workflow
-            steps.extend([
-                WorkflowAction(
-                    type="navigate",
-                    url=f"{base_url}/login" if not base_url.endswith('/login') else base_url,
-                    description=f"Navigate to {app_name or 'application'} login page"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    selector="input[type='email'], input[name='email'], input[type='text'], input[autocomplete='username']",
-                    timeout=3000,
-                    description="Wait for login form to load"
-                ),
-                WorkflowAction(
-                    type="type",
-                    selector="input[name='email'], input[type='email'], input[placeholder*='email' i], input[autocomplete='username'], input[autocomplete='email']",
-                    value="user@example.com",
-                    description="Enter email address or username"
-                ),
-                WorkflowAction(
-                    type="type",
-                    selector="input[name='password'], input[type='password'], input[autocomplete='current-password']",
-                    value="{{PASSWORD}}",
-                    description="Enter password (use secure credential management)"
-                ),
-                WorkflowAction(
-                    type="click",
-                    selector="button[type='submit'], button:has-text('Login'), button:has-text('Sign in'), button:has-text('Log in'), [aria-label*='Login'], [aria-label*='Sign in']",
-                    description="Click the login button"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    timeout=3000,
-                    description="Wait for authentication to complete"
-                )
-            ])
-            
-        elif intent == "search":
-            # Generic search workflow
-            steps.extend([
-                WorkflowAction(
-                    type="navigate",
-                    url=base_url,
-                    description=f"Navigate to {app_name or 'website'}"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    selector="input[type='search'], input[name='q'], input[name='search'], [role='searchbox']",
-                    timeout=3000,
-                    description="Wait for page to load"
-                ),
-                WorkflowAction(
-                    type="click",
-                    selector="input[type='search'], input[name='q'], input[name='search'], [placeholder*='Search' i], [aria-label*='Search' i], [role='searchbox']",
-                    description="Click or focus the search input field"
-                ),
-                WorkflowAction(
-                    type="type",
-                    selector="input[type='search'], input[name='q'], input[name='search'], [role='searchbox']",
-                    value="{{SEARCH_QUERY}}",
-                    description="Enter your search query"
-                ),
-                WorkflowAction(
-                    type="click",
-                    selector="button[type='submit'], button[aria-label*='Search' i], button:has-text('Search'), [role='button']:has-text('Search')",
-                    description="Click the search button or press Enter"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    timeout=3000,
-                    description="Wait for search results to load"
-                )
-            ])
-            
-        elif intent == "extract":
-            # Generic data extraction workflow
-            steps.extend([
-                WorkflowAction(
-                    type="navigate",
-                    url=base_url,
-                    description=f"Navigate to {app_name or 'target'} page"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    selector="body, [role='main'], main",
-                    timeout=3000,
-                    description="Wait for content to fully load"
-                ),
-                WorkflowAction(
-                    type="extract",
-                    selector="{{TARGET_SELECTOR}}",
-                    description="Extract data from specified page elements (selector needs customization)"
-                )
-            ])
-        else:
-            # Generic navigation workflow (fallback for ambiguous intent)
-            steps.extend([
-                WorkflowAction(
-                    type="navigate",
-                    url=base_url,
-                    description=f"Navigate to {app_name or 'the web application'}"
-                ),
-                WorkflowAction(
-                    type="wait",
-                    selector="body, [role='main'], main",
-                    timeout=3000,
-                    description="Wait for page to fully load"
-                )
-            ])
-        
-        # Add final stabilization wait if not already present
-        if steps and steps[-1].type != "wait":
-            steps.append(
-                WorkflowAction(
-                    type="wait",
-                    timeout=1000,
-                    description="Wait for page to stabilize"
-                )
-            )
-        
-        # Generic, adaptable warnings
-        warnings = []
-        
-        if app_name:
-            warnings.append(f"Generated workflow for {app_name}. Review and test before production use.")
-        else:
-            warnings.append("Generated workflow for web application. Review and test before production use.")
-            
-        warnings.extend([
-            "Selectors use generic patterns that work across most modern web apps.",
-            "UI labels may vary slightly - the workflow adapts to common patterns.",
-            "Test in a safe environment before running on production data.",
-        ])
-        
-        if intent == "login":
-            warnings.append("Ensure you have valid credentials before running. Use secure credential management.")
-        
-        if project_context.get('project_name') and intent == "create_project":
-            warnings.append(f"Project will be named: '{project_context['project_name']}'")
-        
-        return ParsedWorkflow(
-            steps=steps,
-            confidence=0.75,  # Generic confidence for any app
-            estimated_duration=len(steps) * 3,
-            requires_auth=intent == "login",
-            warnings=warnings
-        )
-    
+
     def _generate_create_document_workflow(self, base_url: str, app_name: Optional[str], intent: Dict) -> List[WorkflowAction]:
         """
         Generate workflow for creating a document (Google Docs, Notion, etc.)

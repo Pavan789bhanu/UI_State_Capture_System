@@ -379,10 +379,10 @@
     "failed_executions": 23,
     "total_actions": 74,
     "failed_actions": 70,
-    "user_feedback_count": 1
+    "user_feedback_count": 8
   },
   "version": "1.0",
-  "last_updated": 1768756741.429864,
+  "last_updated": 1781270981.7733676,
   "user_corrections": {
     "amazon.com": [
       {
@@ -438,10 +438,74 @@
         "notes": "Search box should have the text of what it wants to search. Here it should be iphone 17. Also, It has to click on the search icon or enter to proceed with the search.",
         "domain": "amazon.com"
       }
+    ],
+    "example.com": [
+      {
+        "task": "Search Medium for recent articles on agent-to-agent communication protocols, real-time multi-agent systems, and large-scale enterprise agent architectures (e.g., IBM-scale data); summarize each relevant article",
+        "timestamp": 1781212388.429984,
+        "feedback_type": "correction",
+        "corrections": [],
+        "notes": "If you are stuck at a point Like in the loop of repeating with same pages when you try to ope it for 3-4 times try checking the content if it is also same then try to end loop and find new way to finish the task. Don't repeat the same process you did before.",
+        "domain": "example.com"
+      },
+      {
+        "task": "Go to hiring cafe and search for machine Learning Engineer position and set the filters to time past 24hours. Location to united states with hybrid, onsite and remote all kind of roles. Pull out me the roles with company name & job title.",
+        "timestamp": 1781222721.887427,
+        "feedback_type": "correction",
+        "corrections": [],
+        "notes": "Look at the second screenshot that page is the right one their in search bar you search for the roles. No need to login & make sure trace back if want to log in page.",
+        "domain": "example.com"
+      },
+      {
+        "task": "Go to hiring cafe website and look out for machine learning engineer roles with filter past 24 hours & location with united states. Output the company name & job title with link in the report.",
+        "timestamp": 1781225610.1125371,
+        "feedback_type": "correction",
+        "corrections": [],
+        "notes": "For workflow automation for websites don't go for Duck Duck go because it is not working for our website automation. Use chrome, firefox and other website as alternatives.",
+        "domain": "example.com"
+      },
+      {
+        "task": "Go to hiring cafe website and look out for machine learning engineer roles with filter past 24 hours & location with united states. Output the company name & job title with link in the report.",
+        "timestamp": 1781225826.132034,
+        "feedback_type": "correction",
+        "corrections": [],
+        "notes": "Strictly saying don't use DuckDuckGo browser it is not working. use other browsers like chrome, firefox & other browsers.",
+        "domain": "example.com"
+      },
+      {
+        "task": "Go to hiring cafe search for machine learning engineer role with filter with past 24 hours and location to united states. Pull out company name, role & job posting link.",
+        "timestamp": 1781227022.140776,
+        "feedback_type": "correction",
+        "corrections": [],
+        "notes": "Let's see break down query first like go to hiring cafe then in that look for search bar and serach for machine learning engineer roles then set the filters.",
+        "domain": "example.com"
+      },
+      {
+        "task": "Summarize the articles on Fables 5 model released by anthropic. Also, Take down the best practices, limitations and tradeoffs of it. Write down the complete summary into a word document, name it Fable 5. I Want more knowledge with respect to Fable 5 with citations.",
+        "timestamp": 1781270222.3001149,
+        "feedback_type": "success",
+        "corrections": [],
+        "notes": "Missing out word document creation here. Read query properly and break down tasks then proceed.",
+        "domain": "example.com"
+      },
+      {
+        "task": "task",
+        "timestamp": 1781270981.7733653,
+        "feedback_type": "failure",
+        "corrections": [],
+        "notes": "missed the banner",
+        "domain": "example.com"
+      }
     ]
   },
   "learned_corrections": {
     "amazon.com": {
+      "selector_corrections": {},
+      "timeout_adjustments": {},
+      "common_additions": [],
+      "common_removals": []
+    },
+    "example.com": {
       "selector_corrections": {},
       "timeout_adjustments": {},
       "common_additions": [],
