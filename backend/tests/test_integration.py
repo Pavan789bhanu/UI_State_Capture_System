@@ -465,10 +465,14 @@ class TestExecutionFeedback:
 
         wf = WF(name="fb-wf", app_name="example", description="task",
                 owner_id=test_user.id, start_url="https://example.com")
-        db.add(wf); db.commit(); db.refresh(wf)
+        db.add(wf)
+        db.commit()
+        db.refresh(wf)
         ex = EX(workflow_id=wf.id, status=ExecutionStatus.SUCCESS,
                 result=_json.dumps({"task": "task", "final_url": "https://example.com/x"}))
-        db.add(ex); db.commit(); db.refresh(ex)
+        db.add(ex)
+        db.commit()
+        db.refresh(ex)
 
         r = client.post(f"/api/executions/{ex.id}/feedback",
                         json={"rating": "negative", "notes": "missed the banner"},

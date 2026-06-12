@@ -36,7 +36,6 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from app.core.config import settings, APP_URL_MAPPINGS
 from app.automation.utils.logger import log
@@ -523,7 +522,7 @@ class AutomationAgent:
             f"PAGE TITLE: {observation['title']}\n\n"
             f"{challenge_note}"
             f"PREVIOUS ACTIONS:\n" + ("\n".join(history_lines) if history_lines else "(none yet)") + "\n\n"
-            f"EXTRACTED DATA SO FAR:\n" + ("\n".join(extracted_lines) if extracted_lines else "(none)") + "\n\n"
+            "EXTRACTED DATA SO FAR:\n" + ("\n".join(extracted_lines) if extracted_lines else "(none)") + "\n\n"
             + (f"IMPORTANT HINT: {hint}\n\n" if hint else "")
             + f"{creds_note}\n\n"
             f"INTERACTIVE ELEMENTS (refer by id):\n{self._format_elements(observation['elements'])}\n\n"

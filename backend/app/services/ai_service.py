@@ -3,7 +3,6 @@ AI Service for natural language processing and workflow generation
 Enhanced with video-based learning from demonstration videos
 """
 import json
-import os
 import re
 from typing import Dict, List, Optional, Any, Tuple
 from pydantic import BaseModel
@@ -754,8 +753,6 @@ Respond ONLY with valid JSON matching this schema:
         
         This is the bridge between "user thinks in goals" and "system executes in apps".
         """
-        description_lower = description.lower()
-        
         # Step 1: Decompose intent to identify app and actions
         intent = self._decompose_intent(description)
         
