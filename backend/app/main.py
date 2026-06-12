@@ -72,4 +72,9 @@ async def api_health_check():
         db_status = "healthy"
     except Exception:
         db_status = "unavailable"
-    return {"status": "healthy", "version": "1.0.0", "database": db_status}
+    return {
+        "status": "healthy",
+        "version": "2.0.0",
+        "database": db_status,
+        "llm_provider": settings.active_llm_provider,
+    }
